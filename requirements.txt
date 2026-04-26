@@ -1,0 +1,24 @@
+# Core data / numerics
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Market data
+yfinance>=0.2.40
+
+# News data
+finnhub-python>=2.4.18
+
+# Reddit data
+praw>=7.7.0
+
+# NLP / FinBERT (pulls PyTorch as a dependency)
+transformers>=4.40.0
+torch>=2.1.0
+
+# Visualization
+plotly>=5.20.0
+
+# Utilities
+python-dotenv>=1.0.0   # Optional: load .env file for API keys
+requests>=2.31.0

@@ -1,0 +1,37 @@
+﻿# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Data — large files, regenerable
+data/raw/**/*.csv
+data/processed/
+*.parquet
+
+# SEC filing raw text (regenerable from EDGAR)
+data/raw/sec/
+
+# FinBERT cache
+models/
+.cache/
+
+# Secrets
+.env
+*.key
+config_local.py
+
+# IDE
+.vscode/
+.idea/
+
+# Dashboard outputs (regenerable, large)
+dashboard/*.html
+
+# Logs (regenerable, daily-rotating)
+logs/*.log
+logs/daily_summary.txt
+
+# OS
+.DS_Store
+Thumbs.db

@@ -8,7 +8,6 @@ Combines multi-source news sentiment (FinBERT) with options market data (IV Rank
 options-sentiment-system/
   data/
     news_fetcher.py       Finnhub news -> CSV
-    reddit_fetcher.py     PRAW search (wsb/stocks/investing/options/StockMarket) -> CSV
     options_fetcher.py    yfinance options chain + real IV back-solver
     raw/                  All CSV output lands here
   sentiment/
@@ -59,13 +58,7 @@ Edit `config.py`:
 
 ```python
 FINNHUB_API_KEY      = "your_key_here"   # https://finnhub.io  (free tier is fine)
-REDDIT_CLIENT_ID     = "your_id_here"    # https://www.reddit.com/prefs/apps (type: "script")
-REDDIT_CLIENT_SECRET = "your_secret_here"
-REDDIT_USER_AGENT    = "OptionsSentimentBot/0.1 by <your-username>"
 ```
-
-> Reddit is optional. If creds are left as placeholders, the daily pipeline
-> logs a warning and continues with news-only sentiment.
 
 ### 4. Run the full pipeline once
 
@@ -77,7 +70,6 @@ Or run individual stages:
 
 ```bash
 python data/news_fetcher.py          # fetch news for all tickers
-python data/reddit_fetcher.py        # fetch Reddit posts (best-effort 90d)
 python data/options_fetcher.py       # fetch options + real IV
 python sentiment/scorer.py           # score with FinBERT
 python signals/signal_engine.py      # generate today's signal

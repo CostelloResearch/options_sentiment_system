@@ -246,30 +246,16 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
 # File I/O
 # ---------------------------------------------------------------------------
 
-def score_from_csv(
-    csv_path: str,
-    save: bool = True,
-    source_tag: str = "",
-) -> pd.DataFrame:
+def score_from_csv(csv_path: str, save: bool = True) -> pd.DataFrame:
     """
-    Full pipeline: load a text CSV -> score each row -> aggregate daily.
-
-    Works for both news CSVs (news_fetcher.py) and reddit CSVs
-    (reddit_fetcher.py) because both share the columns `ticker`, `date`,
-    `headline`, `summary`.
+    Full pipeline: load a news CSV -> score each row -> aggregate daily.
 
     Parameters
     ----------
     csv_path : str
-        Path to e.g. news_{ticker}_{date}.csv or reddit_{ticker}_{date}.csv.
+        Path to news_{ticker}_{date}.csv (output of news_fetcher.py).
     save : bool
         If True, write a sentiment CSV to data/raw/.
-    source_tag : str
-        Optional suffix baked into the output filename so multiple sources
-        (news, reddit, ...) don't overwrite each other:
-          ""        -> sentiment_{ticker}_{date}.csv         (news)
-          "reddit"  -> sentiment_{ticker}_reddit_{date}.csv  (reddit)
-        The aggregator globs sentiment_{ticker}_*.csv so both are picked up.
 
     Returns
     -------
@@ -283,8 +269,7 @@ def score_from_csv(
         print("[scorer] Empty CSV -- nothing to score.")
         return pd.DataFrame()
 
-    # Infer ticker from the filename (news_AAPL_2025-01-15.csv -> AAPL,
-    # reddit_AAPL_2025-01-15.csv -> AAPL).  Both put ticker at index 1.
+    # Infer ticker from the filename (news_AAPL_2025-01-15.csv -> AAPL).
     basename = os.path.basename(csv_path)
     ticker = basename.split("_")[1] if "_" in basename else "UNKNOWN"
 
@@ -292,31 +277,30 @@ def score_from_csv(
     if "ticker" not in news_df.columns:
         news_df["ticker"] = ticker
 
-    # Reddit posts sometimes have empty selftext; make sure it's a string so
+    # Some news rows have empty summary; make sure the column exists so
     # _build_text doesn't choke on NaN.
     if "summary" not in news_df.columns:
         news_df["summary"] = ""
 
-    # Score all articles / posts
+    # Score all articles
     scored_df = score_articles(news_df)
 
     # Collapse to daily summary
     daily_df = aggregate_daily(scored_df)
 
     if save and not daily_df.empty:
-        _save(daily_df, ticker, source_tag=source_tag)
+        _save(daily_df, ticker)
 
     return daily_df
 
 
-def _save(df: pd.DataFrame, ticker: str, source_tag: str = "") -> str:
+def _save(df: pd.DataFrame, ticker: str) -> str:
     """Write daily sentiment DataFrame to data/raw/."""
     raw_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
     os.makedirs(raw_dir, exist_ok=True)
 
     date_str = datetime.date.today().strftime("%Y-%m-%d")
-    suffix   = f"_{source_tag}" if source_tag else ""
-    filename = f"sentiment_{ticker}{suffix}_{date_str}.csv"
+    filename = f"sentiment_{ticker}_{date_str}.csv"
     filepath = os.path.normpath(os.path.join(raw_dir, filename))
 
     df.to_csv(filepath, index=False)
@@ -332,14 +316,6 @@ def _find_latest_news_csv(ticker: str) -> str | None:
     raw_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
     pattern = os.path.join(raw_dir, f"news_{ticker}_*.csv")
     matches = sorted(glob.glob(pattern))   # sorted = oldest -> newest by filename date
-    return matches[-1] if matches else None
-
-
-def _find_latest_reddit_csv(ticker: str) -> str | None:
-    """Glob data/raw/ for the most recent reddit_{ticker}_*.csv."""
-    raw_dir = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
-    pattern = os.path.join(raw_dir, f"reddit_{ticker}_*.csv")
-    matches = sorted(glob.glob(pattern))
     return matches[-1] if matches else None
 
 

@@ -26,7 +26,7 @@ validated by a decay study.
 config.py                          universe + thresholds + API keys
 main.py                            CLI orchestrator
 sentiment/
-  aggregator.py                    news ingestion (Finnhub, Reddit)
+  aggregator.py                    news ingestion (Finnhub)
   scorer.py                        per-headline sentiment scoring
   sec_scorer.py                    SEC 10-K/10-Q/8-K filing sentiment
   merger.py                        news + SEC → combined_sentiment_{T}.csv

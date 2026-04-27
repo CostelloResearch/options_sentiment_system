@@ -59,9 +59,6 @@ def load_sentiment_csvs(ticker: str, raw_dir: str = None) -> pd.DataFrame:
             os.path.join(os.path.dirname(__file__), "..", "data", "raw")
         )
 
-    # This pattern captures both news output (sentiment_AAPL_2025-01-15.csv)
-    # and reddit output (sentiment_AAPL_reddit_2025-01-15.csv), because both
-    # match sentiment_{ticker}_*.csv.
     pattern = os.path.join(raw_dir, f"sentiment_{ticker}_*.csv")
     files = sorted(glob.glob(pattern))
 
@@ -89,61 +86,9 @@ def load_sentiment_csvs(ticker: str, raw_dir: str = None) -> pd.DataFrame:
     df = pd.concat(frames, ignore_index=True)
     df["date"] = pd.to_datetime(df["date"]).dt.date
 
-    # Merge same-day rows (news + reddit on the same date) via count-weighted
-    # average.  This replaces the older drop_duplicates(keep="last") behaviour,
-    # which silently threw away whichever source was loaded first.
-    df = _merge_same_day(df)
-
     df.sort_values("date", inplace=True)
     df.reset_index(drop=True, inplace=True)
     return df
-
-
-def _merge_same_day(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Combine multiple (ticker, date) rows into one via headline-count-weighted
-    average.  Used to fuse news-derived and reddit-derived sentiment for the
-    same day.
-
-    A day with 30 news articles averaging +0.40 and 5 reddit posts averaging
-    -0.20 collapses to:
-        ((30 * 0.40) + (5 * -0.20)) / 35 = +0.286
-        headline_count = 35
-    """
-    if df.empty or "headline_count" not in df.columns:
-        return df
-
-    rows = []
-    for (ticker, date), g in df.groupby(["ticker", "date"], sort=False):
-        if len(g) == 1:
-            rows.append(g.iloc[0].to_dict())
-            continue
-
-        total = float(g["headline_count"].sum())
-        if total <= 0:
-            # Fallback to simple mean if counts are missing
-            agg = {"ticker": ticker, "date": date}
-            for col in ["sentiment_score", "bullish_pct", "bearish_pct",
-                        "neutral_pct", "headline_count"]:
-                if col in g.columns:
-                    agg[col] = g[col].mean()
-            rows.append(agg)
-            continue
-
-        agg = {
-            "ticker":         ticker,
-            "date":           date,
-            "headline_count": int(total),
-        }
-        for col in ["sentiment_score", "bullish_pct", "bearish_pct", "neutral_pct"]:
-            if col in g.columns:
-                agg[col] = round(
-                    float((g[col].astype(float) * g["headline_count"]).sum() / total),
-                    4,
-                )
-        rows.append(agg)
-
-    return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------

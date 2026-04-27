@@ -102,9 +102,9 @@ def section_data_inventory():
     print(f"\n{'-'*_W}")
     print("  DATA INVENTORY")
     print(f"{'-'*_W}")
-    print(f"  {'Ticker':<6}  {'News':>5}  {'Reddit':>6}  {'Options':>7}  "
+    print(f"  {'Ticker':<6}  {'News':>5}  {'Options':>7}  "
           f"{'Sent.days':>9}  {'Signals':>7}  {'Freshness'}")
-    print(f"  {'------':<6}  {'-----':>5}  {'------':>6}  {'-------':>7}  "
+    print(f"  {'------':<6}  {'-----':>5}  {'-------':>7}  "
           f"{'---------':>9}  {'-------':>7}  {'---------'}")
 
     today = datetime.date.today()
@@ -115,16 +115,12 @@ def section_data_inventory():
         news_files = sorted(glob.glob(os.path.join(RAW_DIR, f"news_{ticker}_*.csv")))
         n_news     = len(news_files)
 
-        # Reddit files
-        reddit_files = sorted(glob.glob(os.path.join(RAW_DIR, f"reddit_{ticker}_*.csv")))
-        n_reddit     = len(reddit_files)
-
         # Options files
         opts_files = sorted(glob.glob(os.path.join(RAW_DIR, f"options_{ticker}_*.csv")))
         n_opts     = len(opts_files)
 
-        # Sentiment days: rows across all sentiment CSVs (news + reddit),
-        # excluding our own aggregator output to avoid double-counting.
+        # Sentiment days: rows across all per-day sentiment CSVs, excluding
+        # our own aggregator output to avoid double-counting.
         sent_files = sorted(glob.glob(os.path.join(RAW_DIR, f"sentiment_{ticker}_*.csv")))
         sent_files = [f for f in sent_files
                       if not os.path.basename(f).startswith("sentiment_summary_")]
@@ -153,7 +149,7 @@ def section_data_inventory():
             if stale:
                 warnings.append(f"{ticker}: options data is {age:.1f} days old")
 
-        print(f"  {ticker:<6}  {n_news:>5}  {n_reddit:>6}  {n_opts:>7}  "
+        print(f"  {ticker:<6}  {n_news:>5}  {n_opts:>7}  "
               f"{sent_days:>9}  {n_signals:>7}  {freshness}")
 
     if warnings:
@@ -262,7 +258,6 @@ def section_environment():
     checks = [
         ("yfinance",      "yfinance"),
         ("finnhub",       "finnhub"),
-        ("praw",          "praw"),
         ("transformers",  "transformers"),
         ("plotly",        "plotly"),
         ("pandas",        "pandas"),
@@ -286,13 +281,6 @@ def section_environment():
         print("  Finnhub API key : NOT SET (edit config.py)")
     else:
         print(f"  Finnhub API key : set ({key[:4]}...{key[-4:]})")
-
-    rid = config.REDDIT_CLIENT_ID
-    rsec = config.REDDIT_CLIENT_SECRET
-    if rid.startswith("YOUR_") or rsec.startswith("YOUR_"):
-        print("  Reddit creds    : NOT SET (edit config.py; Reddit step will be skipped)")
-    else:
-        print(f"  Reddit creds    : set (id={rid[:4]}...)")
 
 
 # ---------------------------------------------------------------------------

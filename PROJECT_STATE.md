@@ -51,7 +51,7 @@ options-sentiment-system/
 ├── config.py                       universe + thresholds + API keys
 ├── main.py                         CLI orchestrator
 ├── sentiment/
-│   ├── aggregator.py               news ingestion (Finnhub, Reddit)
+│   ├── aggregator.py               news ingestion (Finnhub)
 │   ├── scorer.py                   per-headline FinBERT-lite scoring
 │   ├── sec_scorer.py               SEC 10-K/10-Q/8-K filing sentiment
 │   └── merger.py                   daily news + SEC merge → combined_sentiment_{T}.csv
@@ -1308,6 +1308,79 @@ intact, so re-enablement is a config / pin change rather than a port.
 Open items: see §10.1 for next-session priorities (real-data
 validation, real-mode debug, BUY PUTS / SELL PUTS revisit, earnings
 Q&A separation).
+
+### 2026-04-27 Reddit removed -- pipeline clarified to 3-stream design
+
+Audit of the sentiment pipeline (read-only, this session) confirmed
+that Reddit had never produced data: no `reddit_*.csv` files on disk
+in `data/raw/` or `data/raw/archive_5ticker/`, `config.REDDIT_*`
+defaults were `"YOUR_..."` placeholders so `_build_client()` would
+have raised on every invocation, and `run_daily.py` swallowed the
+exception silently (Step 2/5 try/except) so downstream code never
+saw a "Reddit unavailable" flag.  The +$6,775 R3 production baseline
+is independent: synthetic-sentiment runs use
+`backtest/engine._generate_synthetic_history` and don't read the
+combined-sentiment CSVs at all.  Documentation and dormant code
+were therefore creating a misleading impression that Reddit was a
+wired feature.
+
+**Decision: remove rather than fix.**  Reddit infrastructure had
+zero validated value (no historical data) and an unbounded cost
+(API key management, rate limits, credentials in env, free-tier
+search reliability).  The 3-stream merger weighting (news 0.50 /
+sec_earnings 0.35 / sec_other 0.15) doesn't depend on Reddit --
+news has always meant "Finnhub" in practice -- so removal is a
+clean documentation alignment, not a math change.
+
+**Code changes landed this session:**
+
+- `data/reddit_fetcher.py` deleted (and its `__pycache__` artifact).
+- `scripts/run_daily.py`: removed Step 2/5 reddit fetch block,
+  Step 4/5 reddit-scoring branch (and `_find_latest_reddit_csv`
+  import), `reddit_post_count` from result and emergency-fallback
+  dicts, `total_reddit` and the `Total reddit posts fetched` line
+  in `write_summary`, the `r=...` field from per-ticker source
+  string.  Step numbering renumbered 1/5..5/5 -> 1/4..4/4.
+- `scripts/check_pipeline.py`: dropped the `Reddit` column from the
+  data-inventory table and its width spec, the reddit-CSV glob, the
+  `praw` package import probe, and the Reddit creds env-check
+  section.
+- `sentiment/aggregator.py`: removed `_merge_same_day` entirely
+  (with reddit gone, the sentiment files for a ticker are one row
+  per date so the same-day-merge step was a no-op).  Updated the
+  comment in `load_sentiment_csvs` that referenced the news+reddit
+  filename pattern.
+- `sentiment/scorer.py`: removed `_find_latest_reddit_csv` and the
+  `source_tag` parameter from both `score_from_csv` and `_save`
+  (only call sites used `""` or `"reddit"`; the latter is gone, the
+  former was the default).  Docstring trimmed accordingly.
+- `config.py`: removed `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`,
+  `REDDIT_USER_AGENT` and the `reddit_lookback_days` /
+  `reddit_post_limit` / `reddit_subreddits` keys from
+  `DATA_PARAMS`.
+- `requirements.txt`: removed `# Reddit data` section header and
+  the `praw>=7.7.0` line.
+- `sentiment/merger.py`: comment fixes only -- `WEIGHT_NEWS`
+  description "Finnhub + Reddit" -> "Finnhub", the load_news
+  filename comment, and the daily-aggregation source comment.
+- `CLAUDE.md`, `PROJECT_STATE.md` §2 file tree, `README.md`:
+  removed Reddit from the architecture nav comments, the project
+  structure listing, the API-key setup section, the
+  optional-disclaimer line, and the per-stage manual-run cheat
+  sheet.
+
+**No changes to merger weights, drop-missing-weight policy,
+backtest engine, signal_engine, position_sizer, or any model
+artifact.**  This is a documentation / dead-code cleanup; the
+3-stream weighting math and all downstream behavior are
+unchanged.
+
+**Verification.**  `scripts/run_daily.py --dry-run` runs cleanly
+post-change with the 10-ticker universe (no import errors, no
+reference to deleted symbols).  `scripts/check_pipeline.py` runs
+cleanly and shows the trimmed inventory table without errors.
+Existing `combined_sentiment_*.csv` files on disk are unaffected
+(the merger output schema is unchanged).
 
 ### 2026-04-24 end-of-session snapshot
 

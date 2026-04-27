@@ -193,7 +193,6 @@ def run_ticker(ticker: str, logger_prefix: str = "") -> dict:
         "iv_rank_pct":        None,
         "sentiment_score":    None,
         "news_count":         0,
-        "reddit_post_count":  0,
         "errors":             [],
     }
 
@@ -206,77 +205,40 @@ def run_ticker(ticker: str, logger_prefix: str = "") -> dict:
         from data.news_fetcher import fetch_news
         news_df = fetch_news(ticker, save=True)
         result["news_count"] = len(news_df)
-        print(f"{tag} Step 1/5 news fetched: {len(news_df)} articles")
+        print(f"{tag} Step 1/4 news fetched: {len(news_df)} articles")
     except Exception as e:
         msg = f"news fetch failed: {e}"
         result["errors"].append(msg)
         result["ok"] = False
-        print(f"{tag} WARN Step 1/5 {msg}")
+        print(f"{tag} WARN Step 1/4 {msg}")
 
     # ------------------------------------------------------------------
-    # Step 2 -- Fetch Reddit (best-effort, up to 90 days)
-    # Failure here is non-fatal -- we can still run on news-only.
-    # ------------------------------------------------------------------
-    try:
-        from data.reddit_fetcher import fetch_reddit_posts
-        reddit_df = fetch_reddit_posts(ticker, save=True)
-        result["reddit_post_count"] = len(reddit_df)
-        if not reddit_df.empty:
-            span = (reddit_df["date"].max() - reddit_df["date"].min()).days
-            print(f"{tag} Step 2/5 reddit fetched: {len(reddit_df)} posts "
-                  f"({span}d span)")
-        else:
-            print(f"{tag} Step 2/5 reddit fetched: 0 posts")
-    except Exception as e:
-        # Don't mark the whole ticker as failed -- news-only is still useful
-        msg = f"reddit fetch failed: {e}"
-        result["errors"].append(msg)
-        print(f"{tag} WARN Step 2/5 {msg}")
-
-    # ------------------------------------------------------------------
-    # Step 3 -- Fetch options chain + IV
+    # Step 2 -- Fetch options chain + IV
     # ------------------------------------------------------------------
     try:
         from data.options_fetcher import fetch_options_chain
         opts_df = fetch_options_chain(ticker, save=True)
         iv_pct  = opts_df["iv_rank_pct"].iloc[0] if not opts_df.empty else None
         result["iv_rank_pct"] = iv_pct
-        print(f"{tag} Step 3/5 options fetched: {len(opts_df)} contracts, "
+        print(f"{tag} Step 2/4 options fetched: {len(opts_df)} contracts, "
               f"IV Rank={iv_pct:.1f}%" if iv_pct is not None else
-              f"{tag} Step 3/5 options fetched (IV Rank unavailable)")
+              f"{tag} Step 2/4 options fetched (IV Rank unavailable)")
     except Exception as e:
         msg = f"options fetch failed: {e}"
         result["errors"].append(msg)
         result["ok"] = False
-        print(f"{tag} WARN Step 3/5 {msg}")
+        print(f"{tag} WARN Step 2/4 {msg}")
 
     # ------------------------------------------------------------------
-    # Step 4 -- Score sentiment (news AND reddit, then merge)
+    # Step 3 -- Score sentiment (Finnhub news)
     # ------------------------------------------------------------------
     try:
-        from sentiment.scorer import (
-            score_from_csv,
-            _find_latest_news_csv,
-            _find_latest_reddit_csv,
-        )
+        from sentiment.scorer import score_from_csv, _find_latest_news_csv
         from sentiment.aggregator import build_sentiment_summary
-
-        scored_any = False
 
         news_csv = _find_latest_news_csv(ticker)
         if news_csv:
-            score_from_csv(news_csv, save=True, source_tag="")
-            scored_any = True
-        else:
-            result["errors"].append("no news CSV found for sentiment scoring")
-
-        reddit_csv = _find_latest_reddit_csv(ticker)
-        if reddit_csv:
-            score_from_csv(reddit_csv, save=True, source_tag="reddit")
-            scored_any = True
-
-        if scored_any:
-            # Aggregator merges news + reddit rows per date via weighted avg
+            score_from_csv(news_csv, save=True)
             summary = build_sentiment_summary(ticker, save=True)
             if not summary.empty:
                 latest = summary.iloc[-1]
@@ -287,18 +249,19 @@ def run_ticker(ticker: str, logger_prefix: str = "") -> dict:
                     result["sentiment_score"] = float(val)
             latest_str = (f"{result['sentiment_score']:+.4f}"
                           if result['sentiment_score'] is not None else "N/A")
-            print(f"{tag} Step 4/5 sentiment scored: "
+            print(f"{tag} Step 3/4 sentiment scored: "
                   f"{len(summary)} days, latest={latest_str}")
         else:
-            print(f"{tag} WARN Step 4/5 no text CSVs available -- skipped")
+            result["errors"].append("no news CSV found for sentiment scoring")
+            print(f"{tag} WARN Step 3/4 no news CSV available -- skipped")
     except Exception as e:
         msg = f"sentiment scoring failed: {e}"
         result["errors"].append(msg)
         result["ok"] = False
-        print(f"{tag} WARN Step 4/5 {msg}")
+        print(f"{tag} WARN Step 3/4 {msg}")
 
     # ------------------------------------------------------------------
-    # Step 5 -- Generate signal
+    # Step 4 -- Generate signal
     # ------------------------------------------------------------------
     try:
         from signals.signal_engine import generate_signal
@@ -309,12 +272,12 @@ def run_ticker(ticker: str, logger_prefix: str = "") -> dict:
             result["earnings_warning"] = earnings_warning
             if earnings_warning:
                 result["earnings_date"] = str(sig_df["earnings_date"].iloc[0])
-        print(f"{tag} Step 5/5 signal: {result['signal']}")
+        print(f"{tag} Step 4/4 signal: {result['signal']}")
     except Exception as e:
         msg = f"signal generation failed: {e}"
         result["errors"].append(msg)
         result["ok"] = False
-        print(f"{tag} WARN Step 5/5 {msg}")
+        print(f"{tag} WARN Step 4/4 {msg}")
 
     return result
 
@@ -337,8 +300,7 @@ def write_summary(
 
     ok_count     = sum(1 for r in results if r["ok"])
     err_count    = len(results) - ok_count
-    total_news   = sum(r["news_count"]         for r in results)
-    total_reddit = sum(r.get("reddit_post_count", 0) for r in results)
+    total_news   = sum(r["news_count"] for r in results)
 
     mins, secs = divmod(int(elapsed_seconds), 60)
     duration   = f"{mins}m {secs:02d}s"
@@ -359,7 +321,7 @@ def write_summary(
         status = "OK  " if r["ok"] else "FAIL"
         iv_str   = f"IV={r['iv_rank_pct']:.0f}%"    if r["iv_rank_pct"]     is not None else "IV=?"
         sent_str = f"Sent={r['sentiment_score']:+.3f}" if r["sentiment_score"] is not None else "Sent=?"
-        src_str  = f"n={r['news_count']}/r={r.get('reddit_post_count', 0)}"
+        src_str  = f"n={r['news_count']}"
         earn_str = ""
         if r.get("earnings_warning"):
             earn_str = f"  [EARNINGS {r.get('earnings_date','')}]"
@@ -371,7 +333,6 @@ def write_summary(
     lines += [
         "",
         f"  Total news articles fetched : {total_news}",
-        f"  Total reddit posts fetched  : {total_reddit}",
         f"  Errors                      : {err_count}",
         "",
     ]
@@ -467,7 +428,6 @@ def main():
                     "iv_rank_pct":       None,
                     "sentiment_score":   None,
                     "news_count":        0,
-                    "reddit_post_count": 0,
                     "errors":            [f"Unexpected: {tb.splitlines()[-1]}"],
                 }
             results.append(result)

@@ -15,9 +15,6 @@ import os
 # Never commit real keys to version control.
 # ---------------------------------------------------------------------------
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "d7ldt79r01qm7o0bg2v0d7ldt79r01qm7o0bg2vg")
-REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID", "YOUR_REDDIT_CLIENT_ID_HERE")
-REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET", "YOUR_REDDIT_CLIENT_SECRET_HERE")
-REDDIT_USER_AGENT = os.getenv("REDDIT_USER_AGENT", "OptionsSentimentBot/0.1 by YourRedditUsername")
 
 # SEC EDGAR requires a descriptive User-Agent containing a contact email.
 # Format: "CompanyOrProject Name contact@example.com"
@@ -90,18 +87,6 @@ ETF_TICKERS = {"SPY", "IWM", "GLD", "TLT", "QQQ"}
 DATA_PARAMS = {
     "news_lookback_days": 30,       # How many days back to fetch news
     "iv_history_days": 252,         # Trading days for IV Rank calculation (~1 year)
-
-    # Reddit backfill: target 90 days, but time_filter="year" + best-effort
-    # search means we get whatever Reddit returns (often 30-60 days).
-    "reddit_lookback_days": 90,
-    "reddit_post_limit": 500,       # Max posts to pull per subreddit per query
-    "reddit_subreddits": [
-        "wallstreetbets",
-        "stocks",
-        "investing",
-        "options",
-        "StockMarket",
-    ],
 
     # SEC EDGAR backfill
     "sec_lookback_years": 3,              # how far back to pull filings

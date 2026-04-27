@@ -57,7 +57,7 @@ RAW_DIR = os.path.normpath(
 # =============================================================================
 # Three-stream blend, replacing the old two-stream news/sec split:
 #
-#   WEIGHT_NEWS           = 0.50   daily news headlines (Finnhub + Reddit)
+#   WEIGHT_NEWS           = 0.50   daily news headlines (Finnhub)
 #   WEIGHT_SEC_EARNINGS   = 0.35   8-K Item 2.02 + Exhibit 99.1 prepared remarks
 #   WEIGHT_SEC_OTHER      = 0.15   10-K MD&A, 10-Q MD&A, non-earnings 8-K covers
 #
@@ -113,10 +113,9 @@ def load_news_sentiment(ticker: str) -> pd.DataFrame:
     bullish_pct, bearish_pct, neutral_pct.
     """
     ticker = ticker.upper()
-    # scorer.py writes sentiment_{TICKER}_{DATE}.csv and, for Reddit,
-    # sentiment_{TICKER}_reddit_{DATE}.csv.  aggregator.py writes a merged
-    # daily summary -- but we skip that here and do our own aggregation so
-    # the merger can reason about headline_count etc.
+    # scorer.py writes sentiment_{TICKER}_{DATE}.csv.  aggregator.py writes
+    # a merged daily summary -- but we skip that here and do our own
+    # aggregation so the merger can reason about headline_count etc.
     pattern = os.path.join(RAW_DIR, f"sentiment_{ticker}_*.csv")
     files = [f for f in sorted(glob.glob(pattern))
              if not os.path.basename(f).startswith("sentiment_summary_")]
@@ -129,8 +128,7 @@ def load_news_sentiment(ticker: str) -> pd.DataFrame:
         return pd.DataFrame()
     df["date"] = pd.to_datetime(df["date"]).dt.normalize()
 
-    # Weighted daily aggregation across all rows (news + reddit for the same
-    # day, since scorer saves one row per day per source).
+    # Weighted daily aggregation across all rows for the same day.
     agg_rows = []
     for (ticker_val, date_val), grp in df.groupby(["ticker", "date"]):
         total_n = float(grp.get("headline_count", pd.Series([1]*len(grp))).sum())

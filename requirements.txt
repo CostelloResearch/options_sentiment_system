@@ -9,9 +9,6 @@ yfinance>=0.2.40
 # News data
 finnhub-python>=2.4.18
 
-# Reddit data
-praw>=7.7.0
-
 # NLP / FinBERT (pulls PyTorch as a dependency)
 transformers>=4.40.0
 torch>=2.1.0

@@ -42,6 +42,22 @@ of the old universe; on the new corpus BUY PUTS Kelly_f flips negative
 BroadMarket are the only sectors where BUY PUTS still shows positive
 mean_dir_ret, both on small samples.
 
+**[2026-04-27 honest-status update — see §12 entry "Out-of-sample
+integrity audits".]** Two OOS validation passes (75/25 chronological
+holdout and 195-refit daily walk-forward) found the +$6,775 / Sharpe
+0.41 / 357-trades synthetic baseline does not generalise: test-fold
+Sharpe **−0.5977**, walk-forward Sharpe **−0.0517**, and the
+confidence model's "highest confidence" Q5 bucket flips from +$5,505
+in-sample to **−$5,685** OOS in the walk-forward run.  Honest current
+state: **architecture validated, in-sample baseline produced,
+out-of-sample audits revealed parameter overfitting, real-data
+validation pending**.  The pipeline runs correctly, the backtest
+engine reproduces its numbers deterministically, and the locked
+design decisions stay in production by inertia — but no
+strategy-edge conclusion is yet defensible without real-data
+walk-forward evidence.  Synthetic-mode runs going forward should
+be interpreted as methodology validation, not edge demonstration.
+
 ---
 
 ## 2. Architecture / module map
@@ -186,6 +202,14 @@ inert in backtest, only fires in live path) and `NEUTRAL` (skip).
   not fixed width), same expiration
 - **DTE: 60** (overridden from 35 after put_structure_study found Variant B
   turned this signal from +$8k to +$32k P&L on the flat corpus)
+  **[2026-04-27: Provisional pending OOS validation.**  The +$8k → +$32k
+  finding was an in-sample sweep over the same 5-ticker flat corpus the
+  rest of the metrics fail to generalise on; the structural choice
+  inherits that fragility.  The override stays because BUY PUTS is
+  zero-contracted under R3's negative-Kelly filter on the 10-ticker
+  corpus anyway, so the override is dormant and removing it would only
+  matter if the signal is re-enabled.  Re-test on real-data corpus
+  before re-enabling.**
 - **Latest performance (flat, 168 trades):** win rate 59.5%, avg win 66.0%,
   avg loss 58.9%, payoff ratio W = 1.12, Kelly_f = +0.2345, 0.25×Kelly = **0.0586**
 - **Decay study:** TRADE (risk-adj +0.218 at 20d, mean +1.44%)
@@ -292,6 +316,28 @@ problem that motivated this work.
 
 ## 6. Production sizing: QUINTILE per-trade cap (R3)
 
+> **[2026-04-27 UPDATE — provisional pending real-data validation —
+> see `outputs/walkforward_audit_report.md`]**
+>
+> R3's selection over R1 / R2 (§9) was made on in-sample metrics
+> we now know are inflated.  The selection criteria (P&L
+> maximisation, Q5−Q1 spread, Sharpe ranking) used the +$12,604 /
+> +0.46 Sharpe number on the 5-ticker corpus and the +$6,775 /
+> +0.41 Sharpe number on the 10-ticker corpus.  Both fail OOS
+> holdout testing per tonight's audits; the walk-forward run shows
+> the aggregate strategy's edge is statistically zero on
+> synthetic-sentiment OOS data.
+>
+> **Decision held, not reversed.**  The synthetic-OOS results say
+> "we don't have evidence R3 is right"; they do **not** say "R3 is
+> wrong."  R1 and R2 weren't tested under walk-forward conditions
+> either, so the data to swap regimes does not exist.  R3 stays in
+> production by inertia, not by validated superiority.  The right
+> next step is to repeat the R1/R2/R3 comparison under walk-forward
+> conditions on real-data corpus once 30-60 days of live news has
+> accumulated.  At that point this decision should be revisited
+> explicitly rather than renewed by default.
+
 _Changed 2026-04-24.  Production was "segregated Kelly buckets"; after the
 three-regime study (§9) adopted R3 we dropped strategy buckets and now
 size per-trade by confidence quintile.  Legacy bucket code is retained
@@ -368,6 +414,50 @@ engine edits.
 ---
 
 ## 7. Latest backtest KPIs
+
+> **[2026-04-27 UPDATE — load-bearing reframe — see
+> `outputs/oos_audit_report.md` and
+> `outputs/walkforward_audit_report.md`]**
+>
+> The +$6,775 / Sharpe 0.41 / 357-trades baseline documented below is
+> **in-sample-inflated**.  Tonight's two audits ran the standard
+> generalisation tests and both produced DEGRADES verdicts:
+>
+> - **75/25 chronological holdout** (cutoff 2025-11-17, fits Kelly
+>   stats / quintile edges / confidence model on the first 75% by
+>   `entry_date`, evaluates on the last 25%): test-fold **Sharpe
+>   −0.5977**, **P&L −$2,877.57** on 113 trades.  Q5 confidence
+>   bucket P&L flips from **+$5,505 in-sample to −$5,586 OOS** —
+>   the model's "highest confidence" trades become its worst losers
+>   when the parameters can't see them in advance.
+>
+> - **Daily walk-forward** (195 unique refits, warmup cutoff
+>   2025-01-06, parameters refit each time a new accepted trade
+>   completes): aggregate **Sharpe −0.0517** (statistically zero) on
+>   698 evaluable signals / 400 taken trades, **P&L −$1,181.26**,
+>   max DD **−$15,312.15**.  Q5 P&L **−$5,685** preserves the
+>   inversion vs in-sample +$5,505.  Rolling 60-day Sharpe
+>   distribution: 39% of windows positive (78 of 201), mean −0.87,
+>   std 1.60.
+>
+> **What this means for the +$6,775 figure.**  Reframe it as
+> **methodology validation, not edge demonstration**.  The
+> architecture (sentiment ingestion → signal classification →
+> spread construction → Kelly sizing → Sharpe-instrumented
+> backtest) is end-to-end functional and reproduces the headline
+> deterministically.  But the parameters fit on synthetic-sentiment
+> data do **not** generalise out-of-sample within the synthetic
+> regime — the Q5 inversion finding reproduces under two completely
+> different validation methodologies.  This says nothing yet about
+> real-data behaviour, which is the only test the production
+> strategy actually needs to pass.
+>
+> **What stays unchanged.**  Code is correct, pipeline runs cleanly,
+> dashboard works, backtest engine reproduces the +$6,775 within
+> drift tolerance, and the architecture itself is sound.  The
+> historical numbers below are preserved as the in-sample record
+> and remain useful as an upper bound on what the parameters can
+> extract from the corpus they were fit on.
 
 ### Current production baseline (synthetic-sentiment 10-ticker, 2026-04-25)
 
@@ -1228,6 +1318,12 @@ intact, so re-enablement is a config / pin change rather than a port.
   `_PER_STRATEGY_SHORT_DELTA["BEAR_PUT_DEBIT"]=0.25`) and signal-
   generation code preserved on disk; revisit Healthcare-only
   restriction (A2) once real data lands (§10.1.3).
+  **[2026-04-27: Provisional pending OOS validation.**  The structural
+  override survives this audit only because the negative-Kelly filter
+  zero-contracts BUY PUTS under R3 on the current corpus.  If real-data
+  Kelly_f swings positive, the 60-DTE / 0.25Δ structure must be
+  re-validated under walk-forward conditions on real sentiment before
+  re-enabling.**
 
 - **D2. SELL PUTS enablement -> Option C (defer to real data).**
   Universe-wide decay returns TRADE at 10d (risk_adj +0.29, mean +1.97%
@@ -1254,6 +1350,14 @@ intact, so re-enablement is a config / pin change rather than a port.
   out v2).  Production loader (`signals/confidence_model.load_model`)
   still reads the unversioned `confidence_model.json` (5-ticker fit).
   Deferred to A/B vs production model after real-data refit.
+  **[2026-04-27: Provisional pending OOS validation.**  The non-
+  promotion was decided on in-sample Q5−Q1 spreads (+12.53pp v2 vs
+  +13.40pp v1).  Tonight's audits show Q5 inversion reproduces under
+  walk-forward for v1, so the in-sample Q5−Q1 spread is not a
+  reliable promotion criterion in the first place — the comparison
+  was between two equally-untested models.  Promote/demote decision
+  should be made on real-data walk-forward Q5 P&L, not in-sample
+  spread.**
 
 - **D4. Pinned baselines updated to 10-ticker production targets.**
   New pins in `scripts/r3_baseline.py`:
@@ -1381,6 +1485,101 @@ reference to deleted symbols).  `scripts/check_pipeline.py` runs
 cleanly and shows the trimmed inventory table without errors.
 Existing `combined_sentiment_*.csv` files on disk are unaffected
 (the merger output schema is unchanged).
+
+### 2026-04-27 Out-of-sample integrity audits — strategic reframe
+
+Two audits this session, both stress-tests of the in-sample
++$6,775 / Sharpe 0.41 / 357-trades baseline.  Production code was
+not modified by either; both are read-only path-(b) re-derivations
+on the existing flat corpus, sizing decisions recomputed under
+parameters whose training data does not include the trades being
+evaluated.  Reports: `outputs/oos_audit_report.md` and
+`outputs/walkforward_audit_report.md`.  Helper scripts:
+`scripts/audit_oos_split.py` and `scripts/audit_walkforward.py`.
+
+**Audit 1: 75/25 chronological holdout** (cutoff 2025-11-17).
+Refits Kelly stats / quintile edges / confidence model on the
+earliest 75% of the flat corpus by `entry_date`; evaluates Kelly
+sizing on the last 25% only.  Train fold (params on data they were
+fit on): Sharpe **+0.7962**, P&L **+$10,147** on 244 trades.
+**Test fold (held-out 25%): Sharpe −0.5977, P&L −$2,878 on 113
+trades.**  Q5 confidence bucket P&L flips from +$5,505 in-sample
+to −$5,586 OOS — the model's "highest confidence" trades become
+its worst losers when held out.
+
+**Audit 2: Daily walk-forward** (195 unique refits, warmup cutoff
+2025-01-06).  Parameters refit each time a new accepted trade
+completes; every signal is sized using parameters fit on data that
+finished before its entry date.  Aggregate **Sharpe −0.0517**
+(statistically zero) across 698 evaluable signals / 400 taken
+trades; **P&L −$1,181**, max DD −$15,312.  Q5 P&L **−$5,685**
+preserves the inversion.  Rolling 60-day Sharpe distribution: 39%
+of windows positive, mean −0.87, std 1.60, 41 strong-positive
+(Sharpe > +0.5) vs 112 strong-negative.
+
+**Verdict: DEGRADES CONSISTENTLY.**  The Q5 inversion reproduces
+under two completely different validation methodologies on
+completely different evaluation samples (113 trades held out vs
+400 trades walk-forward).  The model's high-confidence bucket is
+anti-predictive on synthetic-sentiment OOS data — losing money
+even when averaged over 195 different refit windows.  This is the
+single most robust finding in the audit chain.
+
+**Walk-forward-specific finding: time-varying Kelly_f estimates
+are themselves destructive.**  Walk-forward took **400 taken
+trades vs in-sample's 357** — 43 MORE trades, not fewer.  The
+production R3 negative-Kelly filter zero-contracts BUY PUTS on
+the full corpus (Kelly_f = −0.057), but the rolling Kelly_f over
+walk-forward training samples swings positive in some windows
+before flipping back.  Trades entered during transient
+positive-Kelly windows mostly lost money.  Most striking:
+**JPM goes from −$63 / 14 trades in-sample to −$4,674 / 34 trades
+walk-forward** — the walk-forward sometimes let through JPM
+signals the in-sample run blocked, and most of those losers piled
+on top of an already-negative ticker.
+
+**Strategic reframe.**  The +$6,775 / Sharpe 0.41 baseline is
+**methodology validation, not edge demonstration**.  The
+architecture (sentiment ingestion → signal classification →
+spread construction → Kelly sizing → Sharpe-instrumented
+backtest) is end-to-end functional and deterministic, but the
+parameters fit on synthetic-sentiment data do not generalise
+within that synthetic regime.  All future strategy-edge claims
+must be backed by walk-forward metrics on **real** data; synthetic
+runs become methodology validation only.
+
+**What this DOESN'T change.**  The architecture is unchanged.
+The signal pipeline (Finnhub news → FinBERT → 3-stream merger
+weighting) is correct.  The dashboard renders correctly.  The
+backtest engine reproduces the +$6,775 deterministically.  The
+sizing logic in `position_sizer.size_trade` is well-defined.  The
+locked design decisions (R3 sizing, BUY PUTS structural override,
+v2_10t non-promotion) are now annotated as provisional but not
+reversed — synthetic-OOS results say "no evidence the choice is
+right", not "the choice is wrong", and reversing without a
+better-validated alternative would be churn.
+
+**Annotations added to PROJECT_STATE.md** (this session,
+documentation-only): §1 honest-status paragraph; §6 R3-sizing
+provisional banner; §7 baseline reframe banner; §4.2 BUY PUTS
+structural override note; §12 D1 BUY PUTS deferred annotation;
+§12 D3 v2_10t non-promotion annotation.  No code, scripts,
+backtest engine, signals, sentiment, sizing logic, or config
+were modified.
+
+**Next major step.**  Real-data validation.  The Mon-Fri 6:30 PM
+ET scheduled task accumulates one day of authentic Finnhub
+sentiment per run; once 30-60 trading days are on disk
+(approximately late-May 2026 through mid-June 2026), repeat
+both audits with `--real`.  If the Q5 inversion does not
+reproduce on real data, the synthetic regime was the issue and
+the production strategy has the edge claimed.  If it does
+reproduce, the confidence model itself is anti-predictive and
+needs structural rework — most likely a target-function rebuild
+(magnitude or risk-adjusted-return target rather than win-
+probability target), or a different feature set entirely.  Until
+that data lands, no strategy-edge conclusions can be drawn from
+this codebase.
 
 ### 2026-04-24 end-of-session snapshot
 

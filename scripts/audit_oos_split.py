@@ -28,6 +28,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -74,20 +75,22 @@ SPLIT_FRAC = 0.75
 # Loaders
 # ---------------------------------------------------------------------------
 
-def load_flat_corpus() -> pd.DataFrame:
+def load_flat_corpus(real_mode: bool = False) -> pd.DataFrame:
     frames = []
     for t in config.TICKERS:
-        p = os.path.join(RAW_DIR, f"backtest_{t}_demo.csv")
+        fname = f"backtest_{t}.csv" if real_mode else f"backtest_{t}_demo.csv"
+        p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
             frames.append(pd.read_csv(p, parse_dates=["entry_date", "exit_date"]))
     return pd.concat(frames, ignore_index=True)
 
 
-def load_kelly_logs() -> pd.DataFrame:
+def load_kelly_logs(real_mode: bool = False) -> pd.DataFrame:
     """In-sample reference: existing production Kelly logs."""
     frames = []
     for t in config.TICKERS:
-        p = os.path.join(RAW_DIR, f"backtest_{t}_demo_kelly.csv")
+        fname = f"backtest_{t}_kelly.csv" if real_mode else f"backtest_{t}_demo_kelly.csv"
+        p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
             frames.append(pd.read_csv(p, parse_dates=["entry_date", "exit_date"]))
     return pd.concat(frames, ignore_index=True)
@@ -97,7 +100,10 @@ def load_kelly_logs() -> pd.DataFrame:
 # Train-fold parameter fitting (writes to OOS-specific paths)
 # ---------------------------------------------------------------------------
 
-def fit_train_params(train_flat: pd.DataFrame) -> tuple[dict, list, dict]:
+def fit_train_params(train_flat: pd.DataFrame,
+                     oos_stats_path: str = OOS_STATS_PATH,
+                     oos_edges_path: str = OOS_EDGES_PATH,
+                     oos_model_path: str = OOS_MODEL_PATH) -> tuple[dict, list, dict]:
     """
     Fit kelly_stats, confidence_model, and quintile_edges on the train fold.
 
@@ -117,11 +123,11 @@ def fit_train_params(train_flat: pd.DataFrame) -> tuple[dict, list, dict]:
     # 1. Kelly stats (depends only on pnl_pct; confidence-agnostic)
     train_stats = position_sizer.compute_kelly_stats(train_flat)
     rows = [{"signal": sig, **vals} for sig, vals in train_stats.items()]
-    pd.DataFrame(rows).to_csv(OOS_STATS_PATH, index=False)
+    pd.DataFrame(rows).to_csv(oos_stats_path, index=False)
 
     # 2. Confidence model -- save=False to avoid writing the production path
     train_model = confidence_model.fit_from_trade_log(train_flat, save=False)
-    confidence_model.save_model(train_model, path=OOS_MODEL_PATH)
+    confidence_model.save_model(train_model, path=oos_model_path)
 
     # 3. Quintile edges fit on TRAIN-MODEL predictions over train accepted trades
     df_acc = train_flat[train_flat["accepted"].astype(bool)].reset_index(drop=True)
@@ -132,7 +138,7 @@ def fit_train_params(train_flat: pd.DataFrame) -> tuple[dict, list, dict]:
     train_edges = [float(x) for x in cuts[1:-1]]
     if len(train_edges) != 4:
         train_edges = list(position_sizer.DEFAULT_QUINTILE_EDGES)
-    with open(OOS_EDGES_PATH, "w", encoding="utf-8") as f:
+    with open(oos_edges_path, "w", encoding="utf-8") as f:
         json.dump({"edges": train_edges}, f)
 
     return train_stats, train_edges, train_model
@@ -349,9 +355,16 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
                  train_eval, test_eval,
                  h_in_sample, h_train, h_test,
                  train_stats, train_edges, train_model,
-                 prod_sigs_pre, prod_sigs_post) -> str:
+                 prod_sigs_pre, prod_sigs_post,
+                 mode_label: str = "DEMO") -> str:
+    _flat_pat  = "backtest_*.csv"        if mode_label == "REAL" else "backtest_*_demo.csv"
+    _kelly_pat = "backtest_*_kelly.csv"  if mode_label == "REAL" else "backtest_*_demo_kelly.csv"
+    _out_file  = "oos_audit_report_real.md" if mode_label == "REAL" else "oos_audit_report.md"
+    _oos_tag   = "*_oos_train_real.*"    if mode_label == "REAL" else "*_oos_train.*"
+    _flag      = " --real"               if mode_label == "REAL" else ""
     md = []
     md.append("# Out-of-Sample Audit -- 75/25 Chronological Holdout\n\n")
+    md.append(f"**Mode: {mode_label}**\n\n")
     md.append(
         "_Tests how much of the +$6,775 / Sharpe 0.41 / 357 trades R3 "
         "production baseline is in-sample inflation vs out-of-sample edge.  "
@@ -381,7 +394,7 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     md.append(
         f"- **Implementation choice:** Path (b) -- post-hoc re-derivation "
         f"of Kelly sizing on the existing flat corpus.  The per-share "
-        f"`pnl` and `max_loss` columns in `backtest_*_demo.csv` are "
+        f"`pnl` and `max_loss` columns in `{_flat_pat}` are "
         f"properties of the spread + price walk, not the sizing decision; "
         f"only the contract count changes between in-sample and OOS "
         f"evaluation.  Avoids re-running `engine.run_backtest` (slow) "
@@ -685,12 +698,12 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
 
     md.append("---\n\n")
     md.append("## Reproduction\n\n")
-    md.append("```bash\n.venv/Scripts/python.exe scripts/audit_oos_split.py\n```\n\n")
-    md.append("Reads `data/raw/backtest_*_demo.csv` + "
-              "`data/raw/backtest_*_demo_kelly.csv`; writes "
-              "`outputs/oos_audit_report.md` + the three `*_oos_train.*` "
-              "artifacts under `data/raw/`.  Re-run after any change that "
-              "regenerates the flat or kelly logs.\n")
+    md.append(f"```bash\n.venv/Scripts/python.exe scripts/audit_oos_split.py{_flag}\n```\n\n")
+    md.append(f"Reads `data/raw/{_flat_pat}` + "
+              f"`data/raw/{_kelly_pat}`; writes "
+              f"`outputs/{_out_file}` + the three `{_oos_tag}` "
+              f"artifacts under `data/raw/`.  Re-run after any change that "
+              f"regenerates the flat or kelly logs.\n")
 
     return "".join(md)
 
@@ -755,8 +768,36 @@ def _compose_verdict_paragraph(*, verdict, sh_in, sh_test, sh_degradation_pct,
 # Main
 # ---------------------------------------------------------------------------
 
-def main():
+def main(real_mode: bool = False):
     os.makedirs(OUT_DIR, exist_ok=True)
+
+    mode_label = "REAL" if real_mode else "DEMO"
+
+    # Mode-dependent paths
+    if real_mode:
+        out_path       = os.path.join(OUT_DIR, "oos_audit_report_real.md")
+        oos_stats_path = os.path.join(RAW_DIR, "kelly_stats_oos_train_real.csv")
+        oos_edges_path = os.path.join(RAW_DIR, "quintile_edges_oos_train_real.json")
+        oos_model_path = os.path.join(RAW_DIR, "confidence_model_oos_train_real.json")
+    else:
+        out_path       = OUT_PATH
+        oos_stats_path = OOS_STATS_PATH
+        oos_edges_path = OOS_EDGES_PATH
+        oos_model_path = OOS_MODEL_PATH
+
+    # Guard: fail early if real-mode corpus is missing
+    if real_mode:
+        missing = [t for t in config.TICKERS
+                   if not os.path.exists(os.path.join(RAW_DIR, f"backtest_{t}.csv"))]
+        if missing:
+            first = missing[0]
+            print(f"[oos_audit] ERROR: real-mode corpus not found at "
+                  f"data/raw/backtest_{first}.csv; "
+                  f"has scripts/r3_baseline.py --real been run?")
+            if len(missing) > 1:
+                print(f"[oos_audit]   Also missing: "
+                      f"{', '.join(f'backtest_{t}.csv' for t in missing[1:])}")
+            sys.exit(1)
 
     # Snapshot production-artifact signatures before we touch anything
     prod_sigs_pre = {
@@ -765,8 +806,9 @@ def main():
         PROD_MODEL_PATH: file_signature(PROD_MODEL_PATH),
     }
 
+    print(f"[oos_audit] mode: {mode_label}")
     print("[oos_audit] loading flat corpus...")
-    flat = load_flat_corpus()
+    flat = load_flat_corpus(real_mode=real_mode)
     flat = flat.sort_values("entry_date").reset_index(drop=True)
     print(f"[oos_audit] flat corpus: {len(flat)} signal rows.")
 
@@ -780,7 +822,12 @@ def main():
           f"test: {len(test_flat)} rows.")
 
     print("[oos_audit] fitting train-fold parameters...")
-    train_stats, train_edges, train_model = fit_train_params(train_flat)
+    train_stats, train_edges, train_model = fit_train_params(
+        train_flat,
+        oos_stats_path=oos_stats_path,
+        oos_edges_path=oos_edges_path,
+        oos_model_path=oos_model_path,
+    )
     print(f"[oos_audit] train_stats: {len(train_stats)} signal types.")
     print(f"[oos_audit] train_edges: {[round(e, 4) for e in train_edges]}")
     print(f"[oos_audit] train_model: n={train_model.get('train_n')}, "
@@ -792,7 +839,7 @@ def main():
     test_eval  = evaluate_fold(test_flat,  train_stats, train_edges, train_model)
 
     print("[oos_audit] loading production Kelly logs (in-sample reference)...")
-    full_kelly = load_kelly_logs()
+    full_kelly = load_kelly_logs(real_mode=real_mode)
 
     print("[oos_audit] computing headline metrics...")
     h_in_sample = headline(full_kelly)
@@ -816,11 +863,23 @@ def main():
         h_in_sample=h_in_sample, h_train=h_train, h_test=h_test,
         train_stats=train_stats, train_edges=train_edges, train_model=train_model,
         prod_sigs_pre=prod_sigs_pre, prod_sigs_post=prod_sigs_post,
+        mode_label=mode_label,
     )
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(md)
-    print(f"[oos_audit] -> {OUT_PATH}  ({len(md.splitlines())} lines)")
+    print(f"[oos_audit] -> {out_path}  ({len(md.splitlines())} lines)")
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser(
+        description="75/25 chronological OOS audit of the R3 production baseline."
+    )
+    ap.add_argument(
+        "--real", action="store_true",
+        help=(
+            "Audit real-mode corpus (backtest_*.csv / backtest_*_kelly.csv) "
+            "instead of the default demo corpus."
+        ),
+    )
+    args = ap.parse_args()
+    main(real_mode=args.real)

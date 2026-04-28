@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -78,19 +79,21 @@ OOS_75_25 = {
 # Loaders + headline + helpers (mirror audit_oos_split.py)
 # ---------------------------------------------------------------------------
 
-def load_flat_corpus() -> pd.DataFrame:
+def load_flat_corpus(real_mode: bool = False) -> pd.DataFrame:
     frames = []
     for t in config.TICKERS:
-        p = os.path.join(RAW_DIR, f"backtest_{t}_demo.csv")
+        fname = f"backtest_{t}.csv" if real_mode else f"backtest_{t}_demo.csv"
+        p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
             frames.append(pd.read_csv(p, parse_dates=["entry_date", "exit_date"]))
     return pd.concat(frames, ignore_index=True)
 
 
-def load_kelly_logs() -> pd.DataFrame:
+def load_kelly_logs(real_mode: bool = False) -> pd.DataFrame:
     frames = []
     for t in config.TICKERS:
-        p = os.path.join(RAW_DIR, f"backtest_{t}_demo_kelly.csv")
+        fname = f"backtest_{t}_kelly.csv" if real_mode else f"backtest_{t}_demo_kelly.csv"
+        p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
             frames.append(pd.read_csv(p, parse_dates=["entry_date", "exit_date"]))
     return pd.concat(frames, ignore_index=True)
@@ -455,9 +458,15 @@ def sample_events(events: list, k: int = 7) -> list:
 
 def build_report(*, flat, eval_df, n_warmup, refit_events,
                  warmup_cutoff, full_kelly,
-                 h_in_sample, h_wf, rolling_df, prod_sigs_pre, prod_sigs_post) -> str:
+                 h_in_sample, h_wf, rolling_df, prod_sigs_pre, prod_sigs_post,
+                 mode_label: str = "DEMO") -> str:
+    _flat_pat  = "backtest_*.csv"        if mode_label == "REAL" else "backtest_*_demo.csv"
+    _kelly_pat = "backtest_*_kelly.csv"  if mode_label == "REAL" else "backtest_*_demo_kelly.csv"
+    _out_file  = "walkforward_audit_report_real.md" if mode_label == "REAL" else "walkforward_audit_report.md"
+    _flag      = " --real"               if mode_label == "REAL" else ""
     md = []
     md.append("# Walk-Forward Audit -- Daily Refit on R3 Baseline\n\n")
+    md.append(f"**Mode: {mode_label}**\n\n")
 
     # =====================================================================
     # 1. Question and methodology summary
@@ -800,11 +809,11 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     )
 
     md.append("---\n\n## Reproduction\n\n")
-    md.append("```bash\n.venv/Scripts/python.exe scripts/audit_walkforward.py\n```\n\n")
-    md.append("Reads `data/raw/backtest_*_demo.csv` + "
-              "`data/raw/backtest_*_demo_kelly.csv`; writes "
-              "`outputs/walkforward_audit_report.md` only.  Re-run after "
-              "any change that regenerates the flat or kelly logs.\n")
+    md.append(f"```bash\n.venv/Scripts/python.exe scripts/audit_walkforward.py{_flag}\n```\n\n")
+    md.append(f"Reads `data/raw/{_flat_pat}` + "
+              f"`data/raw/{_kelly_pat}`; writes "
+              f"`outputs/{_out_file}` only.  Re-run after "
+              f"any change that regenerates the flat or kelly logs.\n")
 
     return "".join(md)
 
@@ -906,8 +915,26 @@ def compose_verdict(*, h_in_sample, h_wf, rolling_df, q5_in, q1_in, q5_wf, q1_wf
 # Main
 # ---------------------------------------------------------------------------
 
-def main():
+def main(real_mode: bool = False):
     os.makedirs(OUT_DIR, exist_ok=True)
+
+    mode_label = "REAL" if real_mode else "DEMO"
+    out_path   = (os.path.join(OUT_DIR, "walkforward_audit_report_real.md")
+                  if real_mode else OUT_PATH)
+
+    # Guard: fail early if real-mode corpus is missing
+    if real_mode:
+        missing = [t for t in config.TICKERS
+                   if not os.path.exists(os.path.join(RAW_DIR, f"backtest_{t}.csv"))]
+        if missing:
+            first = missing[0]
+            print(f"[wf_audit] ERROR: real-mode corpus not found at "
+                  f"data/raw/backtest_{first}.csv; "
+                  f"has scripts/r3_baseline.py --real been run?")
+            if len(missing) > 1:
+                print(f"[wf_audit]   Also missing: "
+                      f"{', '.join(f'backtest_{t}.csv' for t in missing[1:])}")
+            sys.exit(1)
 
     prod_sigs_pre = {
         PROD_STATS_PATH: file_signature(PROD_STATS_PATH),
@@ -915,8 +942,9 @@ def main():
         PROD_MODEL_PATH: file_signature(PROD_MODEL_PATH),
     }
 
+    print(f"[wf_audit] mode: {mode_label}")
     print("[wf_audit] loading flat corpus...")
-    flat = load_flat_corpus()
+    flat = load_flat_corpus(real_mode=real_mode)
     print(f"[wf_audit] {len(flat)} signal rows.")
 
     print("[wf_audit] running walk-forward (cached refits)...")
@@ -928,7 +956,7 @@ def main():
           f"{warmup_cutoff.strftime('%Y-%m-%d') if warmup_cutoff else 'N/A'}.")
 
     print("[wf_audit] loading production Kelly logs...")
-    full_kelly = load_kelly_logs()
+    full_kelly = load_kelly_logs(real_mode=real_mode)
 
     print("[wf_audit] computing rolling Sharpe...")
     rolling_df = rolling_sharpe(eval_df)
@@ -953,11 +981,23 @@ def main():
         full_kelly=full_kelly,
         h_in_sample=h_in_sample, h_wf=h_wf, rolling_df=rolling_df,
         prod_sigs_pre=prod_sigs_pre, prod_sigs_post=prod_sigs_post,
+        mode_label=mode_label,
     )
-    with open(OUT_PATH, "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(md)
-    print(f"[wf_audit] -> {OUT_PATH} ({len(md.splitlines())} lines)")
+    print(f"[wf_audit] -> {out_path} ({len(md.splitlines())} lines)")
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser(
+        description="Daily walk-forward audit of the R3 production baseline."
+    )
+    ap.add_argument(
+        "--real", action="store_true",
+        help=(
+            "Audit real-mode corpus (backtest_*.csv / backtest_*_kelly.csv) "
+            "instead of the default demo corpus."
+        ),
+    )
+    args = ap.parse_args()
+    main(real_mode=args.real)

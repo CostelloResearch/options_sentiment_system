@@ -1,5 +1,7 @@
 # Out-of-Sample Audit -- 75/25 Chronological Holdout
 
+**Mode: DEMO**
+
 _Tests how much of the +$6,775 / Sharpe 0.41 / 357 trades R3 production baseline is in-sample inflation vs out-of-sample edge.  Fits Kelly stats, quintile edges, and confidence model on the earliest 75% of the flat corpus; re-derives Kelly sizing on the last 25% using those train-fitted parameters; reports headline metrics for full corpus (in-sample), train fold, test fold._
 
 ## 1. The audit's question

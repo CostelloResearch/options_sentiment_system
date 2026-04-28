@@ -9,6 +9,9 @@ data/raw/**/*.csv
 data/processed/
 *.parquet
 
+# Insider-transaction fetcher outputs (regenerable via scripts/backfill_insider_history.py)
+data/raw/insider_*.csv
+
 # SEC filing raw text (regenerable from EDGAR)
 data/raw/sec/
 

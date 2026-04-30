@@ -1,6 +1,6 @@
 # Project State — Options Sentiment System
 
-_Snapshot as of 2026-04-25.  Regenerate by hand when a meaningful fix or
+_Snapshot as of 2026-04-30.  Regenerate by hand when a meaningful fix or
 parameter change lands; this file is the "resume the project cold" document._
 
 ---
@@ -1621,6 +1621,84 @@ What changed this session (vs the post-initial-build state documented in
   parked until real sentiment backfill arrives.  Magnitude model
   should be re-tested on real data where `sec_aligned` and
   `log_days_to_earnings` carry non-zero variance.
+
+### 2026-04-30 Dedup fix + housekeeping
+
+**Deduplication fix (same date, separate session):**
+
+Root cause: each daily scrape (`sentiment_{T}_{date}.csv`) contains a multi-day
+lookback window, not just the current day's articles.  When `load_sentiment_csvs`
+stacks all available daily files, earlier dates appear once per file that covers
+them — up to 5 rows for one date when 5 overlapping scrape windows overlap.
+`_fill_date_gaps`'s left-merge propagated those duplicates verbatim into the summary.
+
+**Fixes landed:**
+
+1. **One-time cleanup:** all 10 `sentiment_summary_{T}.csv` files deduped in place.
+   Rule: per `(ticker, date)`, keep the row with the highest `headline_count`
+   (most comprehensive single scrape); ties keep the first occurrence.
+
+   | ticker | rows before | rows after | removed |
+   |---|---:|---:|---:|
+   | AAPL | 24 | 8 | 16 |
+   | NVDA | 194 | 189 | 5 |
+   | JPM  | 35 | 14 | 21 |
+   | XOM  | 55 | 20 | 35 |
+   | UNH  | 48 | 20 | 28 |
+   | WMT  | 41 | 16 | 25 |
+   | IWM  | 48 | 19 | 29 |
+   | GLD  | 88 | 34 | 54 |
+   | TLT  | 86 | 34 | 52 |
+   | SPY  | 28 | 9 | 19 |
+   | **total** | **657** | **373** | **284** |
+
+2. **Pipeline fix:** `sentiment/aggregator.py` `load_sentiment_csvs` — added a
+   deduplication step immediately after `pd.concat`.  For each `(ticker, date)`,
+   keeps the row with the highest `headline_count`; ties keep first occurrence.
+   All future `build_sentiment_summary` calls produce clean output automatically.
+
+**Housekeeping (same session):**
+
+- `config.DATA_PARAMS["news_lookback_days"]` confirmed at 30 (no change).
+  Tonight's 6:30 PM run naturally backfills 2026-04-29 (the run missed while
+  the laptop was off): the 30-day window covers it, and 4/29 articles will
+  appear in `sentiment_{T}_2026-04-30.csv` with proper scores.
+- 10 `.bak` files created by the dedup fix deleted from `data/raw/`.
+- Momentum label audit: `detect_momentum` uses `min_streak=3`.  NaN gap-fill
+  rows (weekends / no-news calendar days) set direction=0 and reset the streak
+  counter via the `else` branch (`streak=1, streak_dir=cur_dir`), so any
+  weekend gap between actual data days breaks a streak in progress.  Labels
+  therefore require 3 consecutive calendar days with actual data and the same
+  direction change — possible on Mon/Tue/Wed or Tue/Wed/Thu sequences, not
+  across weekends.  Status as of 2026-04-30: only NVDA (1 FALLING) and SPY
+  (1 RISING, 1 FALLING) show any labels; 8 of 10 tickers are zero.
+  **Validation checkpoint: ~2026-05-21 (15 trading days).**  By that date
+  each ticker will have multiple weekday-consecutive data windows; inspect
+  label counts then to confirm streak logic is firing as intended.
+- Windows wake timer command documented: run once in an admin PowerShell to
+  register a daily 6:25 PM scheduled task that wakes the machine 5 minutes
+  before the `OptionsSentimentPipeline` trigger.  Works from sleep (S3);
+  does NOT reliably wake from hibernate (S4) or Fast Startup hybrid sleep.
+  See §10.1 addendum below.
+
+**Data pipeline status as of 2026-04-30:**
+
+| ticker | actual data days | date range |
+|---|---:|---|
+| AAPL | 8  | 2026-04-21 to 2026-04-28 |
+| NVDA | 9 + pre-Apr history | 2025-10-22 to 2026-04-28 |
+| JPM  | 14 | 2026-04-15 to 2026-04-28 |
+| XOM  | 20 | 2026-04-09 to 2026-04-28 |
+| UNH  | 20 | 2026-04-09 to 2026-04-28 |
+| WMT  | 16 | 2026-04-13 to 2026-04-28 |
+| IWM  | 19 | 2026-04-10 to 2026-04-28 |
+| GLD  | 31 | 2026-03-26 to 2026-04-28 |
+| TLT  | 29 | 2026-03-26 to 2026-04-28 |
+| SPY  | 9  | 2026-04-20 to 2026-04-28 |
+
+Pipeline is in passive accumulation mode.  No code changes planned until the
+15-trading-day checkpoint (~2026-05-21).  The 30-60 trading day milestone for
+real-data backtesting remains ~late-May through mid-June 2026 (§10.1).
 
 ---
 

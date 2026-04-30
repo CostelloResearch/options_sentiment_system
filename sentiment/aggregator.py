@@ -86,6 +86,15 @@ def load_sentiment_csvs(ticker: str, raw_dir: str = None) -> pd.DataFrame:
     df = pd.concat(frames, ignore_index=True)
     df["date"] = pd.to_datetime(df["date"]).dt.date
 
+    # Each daily file covers a multi-day lookback window, so stacking all files
+    # produces multiple rows for the same date.  Keep the row with the highest
+    # headline_count — the most comprehensive single scrape for that day.
+    if df.duplicated(subset=["ticker", "date"]).any():
+        df = (
+            df.sort_values("headline_count", ascending=False)
+              .drop_duplicates(subset=["ticker", "date"], keep="first")
+        )
+
     df.sort_values("date", inplace=True)
     df.reset_index(drop=True, inplace=True)
     return df

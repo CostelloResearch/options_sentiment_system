@@ -115,6 +115,20 @@ CONVERGENCE_TOL  = 1e-6
 # legacy formula rather than returning 0.  0 would disable every trade.
 FALLBACK_CONFIDENCE_ON_MISSING = True
 
+# ---------------------------------------------------------------------------
+# Option A (2026-05-01): disable the learned logistic model entirely.
+# Walk-forward audit (2026-04-28) showed Q5 P&L inverts +$3,674 in-sample to
+# -$5,685 OOS -- the model's "highest confidence" trades are systematically
+# the worst losers on data the parameters haven't seen.  With sizing now
+# uniform (position_sizer.USE_QUINTILE_SIZING=False) the predicted p(win)
+# no longer routes capital, so loading the JSON would only stamp a misleading
+# probability on every trade row.  We gate load_model() to return None so
+# both the live signal path and the backtest engine fall through to the
+# legacy tiered-confidence formula -- keeping the JSON on disk untouched
+# for later A/B comparison if/when the model is rebuilt with a defensible
+# OOS validation step.
+USE_LEARNED_MODEL = False
+
 
 # ---------------------------------------------------------------------------
 # Feature engineering
@@ -325,6 +339,11 @@ def save_model(model: dict, path: Optional[str] = None) -> str:
 
 def load_model(path: Optional[str] = None) -> Optional[dict]:
     """Return the fitted model dict, or None if not on disk."""
+    # Option A gate (2026-05-01): when USE_LEARNED_MODEL is False, every
+    # caller falls through to the legacy confidence formula.  See module
+    # docstring on USE_LEARNED_MODEL for the walk-forward rationale.
+    if not USE_LEARNED_MODEL:
+        return None
     path = path or model_path()
     if not os.path.exists(path):
         return None

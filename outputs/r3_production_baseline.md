@@ -16,7 +16,7 @@ _Post-adoption confirmation: the QUINTILE sizing regime selected in `outputs/reg
 | regime | n_signals | n_trades | total_pnl | sharpe | max_dd | profit_factor | win_rate |
 |---|---|---|---|---|---|---|---|
 | flat (baseline) | 851 | 613 | 17913.1200 | 0.4200 | -21692.1800 | 1.2321 | 0.3619 |
-| R3 production (quintile, no buckets) | 851 | 357 | 6775.1400 | 0.4103 | -6243.9900 | 1.2675 | 0.2186 |
+| R3 production (quintile, no buckets) | 872 | 360 | 5836.1300 | 0.4973 | -6567.8800 | 1.3113 | 0.2248 |
 
 ## 3. BUY PUTS cap utilization + block rate
 
@@ -30,25 +30,27 @@ _Under R3 the `cap` is the global 6% portfolio cap (no per-strategy buckets)._
 
 | quintile | n | mean_conf | win_rate | avg_pnl | total_pnl |
 |---|---|---|---|---|---|
-| Q1 | 65 | 0.5283 | 0.3846 | -19.2800 | -1253.2700 |
-| Q2 | 75 | 0.5536 | 0.5467 | 11.0400 | 828.0500 |
-| Q3 | 62 | 0.5702 | 0.4839 | -5.6600 | -351.0900 |
-| Q4 | 77 | 0.5893 | 0.5974 | 26.5800 | 2046.8900 |
-| Q5 | 78 | 0.6202 | 0.5641 | 70.5700 | 5504.5600 |
+| Q1 | 333 | 0.2983 | 0.5616 | 20.6500 | 6875.5000 |
+| Q2 | 6 | 0.5507 | 0.6667 | 85.3100 | 511.8800 |
+| Q3 | 7 | 0.5675 | 0.4286 | -23.2800 | -162.9400 |
+| Q4 | 3 | 0.5893 | 0.6667 | 9.2000 | 27.6000 |
+| Q5 | 11 | 0.6896 | 0.0000 | -128.7200 | -1415.9100 |
 
 ## 5. Trade counts per strategy
 
 | signal | flat | R3 |
 |---|---|---|
-| BUY CALLS | 357 | 357 |
+| BUY CALLS | 357 | 360 |
 | BUY PUTS | 256 | 0 |
 
 ## 6. Drift check vs regime_comparison study
 
 | metric | production | study | drift |
 |---|---|---|---|
-| total_pnl | 6775.1400 | 6775.0000 | 0.1400 |
-| sharpe | 0.4103 | 0.4100 | 0.0003 |
-| n_trades | 357.0000 | 357.0000 | 0.0000 |
+| total_pnl | 5836.1300 | 6775.0000 | -938.8700 |
+| sharpe | 0.4973 | 0.4100 | 0.0873 |
+| n_trades | 360.0000 | 357.0000 | 3.0000 |
 
-**Verdict:** `MATCH`
+**Verdict:** `DRIFT`
+
+If verdict is DRIFT, investigate what changed in `position_sizer.size_trade`, `backtest/engine.py`, or the logistic confidence model.  The R3 study numbers are pinned in this script (R3_STUDY_TOTAL_PNL / R3_STUDY_SHARPE / R3_STUDY_N_TRADES) so any legitimate change in production should update those constants alongside.

@@ -145,6 +145,23 @@ QUINTILE_FRAC = {
 # Flip to True to run legacy segregated-bucket behaviour for A/B comparison.
 USE_STRATEGY_BUCKETS = False
 
+# ---------------------------------------------------------------------------
+# Option A (2026-05-01): disable confidence-quintile sizing in favour of a
+# uniform per-trade fraction.  The 2026-04-28 walk-forward audit found Q5
+# P&L flips +$3,674 in-sample to -$5,685 OOS (Q5-Q1 spread -$6,472) -- the
+# "highest confidence" trades are systematically the worst on OOS data, so
+# amplifying them via QUINTILE_FRAC is anti-predictive.  Replacing the
+# quintile lookup with a single fraction strictly reduces the model's
+# degrees of freedom while preserving total capital deployment.  The
+# negative-Kelly filter (lines 519-527) and the global 6% portfolio cap
+# remain unchanged -- we only remove the per-trade scaling step.
+USE_QUINTILE_SIZING:    bool  = False
+# Implied mean of QUINTILE_FRAC values: (0.10 + 0.20 + 0.30 + 0.50 + 0.80) / 5
+# = 0.38%.  Chosen so total deployed capital is approximately preserved vs
+# the in-sample R3 baseline (which averaged ~0.38% by construction once the
+# confidence distribution settles).
+UNIFORM_PER_TRADE_FRAC: float = 0.0038
+
 # Legacy STRATEGY_BUCKETS values.  Kept for reference + A/B tests (set
 # USE_STRATEGY_BUCKETS=True to use them).  Values are the last-validated
 # allocation before we switched to quintile sizing.
@@ -539,6 +556,13 @@ def size_trade(
             source     = "fallback"
         conf_scaled    = frac_kelly * max(confidence, 0.25)
         per_trade_frac = min(conf_scaled, MAX_RISK_PER_TRADE)
+    elif not USE_QUINTILE_SIZING:
+        # Option A (2026-05-01): uniform per-trade fraction, ignoring
+        # confidence entirely.  See module-level docstring on USE_QUINTILE_SIZING
+        # for the walk-forward Q5-inversion rationale.  MAX_RISK_PER_TRADE clamp
+        # is defensive -- UNIFORM_PER_TRADE_FRAC=0.38% is well below the 2% cap.
+        per_trade_frac = min(UNIFORM_PER_TRADE_FRAC, MAX_RISK_PER_TRADE)
+        source = "uniform"
     else:
         # Production: confidence quintile -> flat per-trade fraction.
         q = _quintile_label(confidence, quintile_edges)

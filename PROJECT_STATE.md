@@ -58,6 +58,30 @@ strategy-edge conclusion is yet defensible without real-data
 walk-forward evidence.  Synthetic-mode runs going forward should
 be interpreted as methodology validation, not edge demonstration.
 
+**[2026-05-01 update — Option A applied; see §6 head note and
+`outputs/option_a_uniform_sizing.md`.]**  Confidence-quintile sizing
+and the learned logistic confidence model are both disabled.  R3's
+quintile lookup is replaced with a uniform per-trade fraction
+(`UNIFORM_PER_TRADE_FRAC = 0.0038`, the implied mean of the prior
+QUINTILE_FRAC table); `confidence_model.load_model()` returns `None`
+so both `signal_engine.py` and `backtest/engine.py` fall through to
+the legacy tiered-confidence formula.  In-sample under uniform
+sizing on 2026-05-01: **+$5,836 / Sharpe 0.50 / 360 trades / max DD
+−$6,568**.  Walk-forward: **−$1,204 / Sharpe −0.0617 / 400 trades /
+max DD −$10,705** (DD improved 30% vs the pre-change −$15,312;
+Sharpe statistically equivalent).  The strict spec criterion
+(walk-forward Sharpe must rise) was not met — Sharpe drifted 0.01
+in the wrong direction — but human review on 2026-05-01 kept the
+change because in-sample Sharpe held flat while P&L dropped 34%
+(quintile sizing was an exposure amplifier, not an edge extractor)
+and walk-forward max DD improved meaningfully.  Decision is
+**provisional pending real-data validation** in mid-May 2026; JSON
+artifacts at `data/raw/confidence_model.json` and
+`data/raw/quintile_edges.json` are preserved on disk for instant
+reversal (flip both flags back to `True`).  Synthetic baseline drift
+is now treated as a property of the today()-anchored synthetic
+window rather than a thing to chase — see §7 head note.
+
 ---
 
 ## 2. Architecture / module map
@@ -337,6 +361,72 @@ problem that motivated this work.
 > conditions on real-data corpus once 30-60 days of live news has
 > accumulated.  At that point this decision should be revisited
 > explicitly rather than renewed by default.
+>
+> **[2026-05-01 follow-up — R3 quintile sizing DISABLED in favour of
+> uniform per-trade sizing.  See the "Option A" entry immediately
+> below; this section is preserved as historical record only.  The
+> R1/R2/R3 walk-forward comparison on real data, when it happens,
+> should now treat uniform sizing as a fourth regime alongside
+> R1/R2/R3 rather than picking among the three originals.]**
+
+> **[2026-05-01 — Option A: uniform per-trade sizing (NEW LOCKED
+> DECISION) — see `outputs/option_a_uniform_sizing.md`]**
+>
+> **Decision.** Disable the learned logistic confidence model and
+> replace R3 confidence-quintile sizing with a uniform per-trade
+> fraction.  Effective immediately on the synthetic baseline; carries
+> forward to real-mode runs without code change.
+>
+> **Implementation.** Two module-level flags:
+>
+> - `signals/position_sizer.py`:
+>   `USE_QUINTILE_SIZING: bool = False`,
+>   `UNIFORM_PER_TRADE_FRAC: float = 0.0038` (implied mean of the
+>   prior `QUINTILE_FRAC` table: `(0.10 + 0.20 + 0.30 + 0.50 + 0.80) / 5`).
+>   New `elif not USE_QUINTILE_SIZING:` branch in `size_trade()`
+>   returns `kelly_source = "uniform"` ahead of the legacy quintile
+>   block.  Negative-Kelly filter and global 6% portfolio cap unchanged.
+> - `signals/confidence_model.py`:
+>   `USE_LEARNED_MODEL = False`.  One-line gate at the top of
+>   `load_model()` returns `None`, so both `signal_engine.py:471` and
+>   `backtest/engine.py:684` fall through to their legacy
+>   tiered-confidence formulas without code change at the call sites.
+>
+> **Rationale.** The 2026-04-28 walk-forward audit established that
+> Q5 P&L inverts +$3,674 in-sample to −$5,685 OOS — the model's
+> "highest confidence" trades are systematically the worst losers on
+> data the parameters haven't seen, and `QUINTILE_FRAC` amplifies Q5
+> 8x relative to Q1.  Option A validation on 2026-05-01 found that
+> in-sample Sharpe held flat (0.51 → 0.50) while in-sample P&L dropped
+> 34% (+$8,895 → +$5,836), confirming quintile sizing was acting as
+> an **exposure amplifier rather than a differential-edge extractor**
+> — removing it gives back roughly the gain that quintile sizing
+> extracted from the in-sample fit, with no Sharpe penalty.  Max
+> drawdown improved 30% on walk-forward (−$15,312 → −$10,705) while
+> Sharpe stayed statistically equivalent (−0.0517 → −0.0617, both
+> indistinguishable from zero on n=698).  Q5 − Q1 spread compressed
+> on walk-forward (−$6,472 → −$5,827), confirming the structural
+> prediction that quintile sizing was the active mechanism.
+>
+> **Status — provisional pending real-data validation in mid-May 2026.**
+> The strict acceptance criterion in the implementation spec required
+> walk-forward Sharpe to rise; it drifted 0.01 in the wrong direction
+> (within statistical noise on 195 windows).  The implementation
+> session correctly did not auto-promote.  Human review on 2026-05-01
+> kept the change on the basis of the broader result set above.
+> Synthetic-mode results say nothing definitive about real-data
+> behaviour; treat this decision as load-bearing for current
+> production but expect it to be revisited once 30-60 days of live
+> news has accumulated.
+>
+> **Reversal path.** Flip both flags back to `True`
+> (`USE_QUINTILE_SIZING = True` in `position_sizer.py`,
+> `USE_LEARNED_MODEL = True` in `confidence_model.py`).  No call-site
+> edits required — both shared functions are already wired.  The JSON
+> artifacts at `data/raw/confidence_model.json` (logistic coefficients,
+> Apr 24 timestamp preserved) and `data/raw/quintile_edges.json` are
+> kept on disk specifically to enable instant reversal without
+> retraining.
 
 _Changed 2026-04-24.  Production was "segregated Kelly buckets"; after the
 three-regime study (§9) adopted R3 we dropped strategy buckets and now
@@ -459,6 +549,37 @@ engine edits.
 > and remain useful as an upper bound on what the parameters can
 > extract from the corpus they were fit on.
 
+> **[2026-05-01 follow-up — synthetic baseline drift is now a
+> documented property of the system, and Option A has changed the
+> production-sizing numbers.  See `outputs/option_a_uniform_sizing.md`.]**
+>
+> **Drift is a feature of the demo, not a regression.**  Synthetic
+> sentiment is generated from a window anchored to
+> `datetime.date.today()` (see §8.3), so the corpus slides one
+> trading day per calendar day.  Between the 2026-04-25 pin and
+> 2026-05-01 the same `r3_baseline.py` invocation — with **zero code
+> changes** — drifted from the pinned **+$6,775 / Sharpe 0.41 / 357
+> trades** to **+$8,895 / Sharpe 0.51 / 360 trades**.  This is not a
+> bug; it is what happens when you anchor a 500-day window to today.
+> The "+$6,775 baseline" should henceforth be treated as a historical
+> snapshot rather than a stable fixture.  Future synthetic
+> comparisons must capture a fresh pre-baseline immediately before
+> any post-change baseline rather than comparing against the pinned
+> values; pins in `scripts/r3_baseline.py` are intentionally not
+> updated to make this drift visible in the drift-check output.
+>
+> **Current production sizing under Option A (uniform sizing,
+> 2026-05-01 in-sample):** **+$5,836 / Sharpe 0.50 / 360 trades / max
+> DD −$6,568 / PF 1.31** vs the pre-Option-A 2026-05-01 baseline of
+> **+$8,895 / Sharpe 0.51 / 360 trades / max DD −$8,421 / PF 1.36**.
+> Walk-forward on the same date: **−$1,204 / Sharpe −0.0617 / 400
+> trades / max DD −$10,705**, vs pre-Option-A walk-forward
+> **−$1,181 / Sharpe −0.0517 / 400 trades / max DD −$15,312**.  Trade
+> count is unchanged in both samples (the negative-Kelly filter still
+> runs first); the change is purely in per-trade size dispersion.
+> See `outputs/option_a_uniform_sizing.md` §5 for the full diff
+> table and §6 for the verdict reasoning.
+
 ### Current production baseline (synthetic-sentiment 10-ticker, 2026-04-25)
 
 _500-day demo run, 10 tickers, R3 sizing.  Headline numbers from
@@ -476,11 +597,21 @@ archived 5-ticker baseline._
 |---|---:|---:|---:|---:|---:|---:|---:|
 | **flat** (baseline, 1 contract) | 851 | 613 | **+$17,913** | **0.42** | −$21,692 | 1.23 | 36.2% |
 | **R3 production (quintile, BUY CALLS only)** | 851 | **357** | **+$6,775** | **0.41** | −$6,244 | 1.27 | 21.9%* |
+| **R3 production (quintile) — same code, 2026-05-01 drift snapshot** | 872 | 360 | +$8,895 | 0.51 | −$8,421 | 1.36 | 22.5%* |
+| **Option A (uniform sizing) — current production, 2026-05-01** | 872 | 360 | +$5,836 | 0.50 | −$6,568 | 1.31 | 22.5%* |
 
 \* Universe-wide win rate over all signal evaluations (includes the 256
 BUY PUTS rows the negative-Kelly filter zero-contracted).  The pure
 BUY-CALLS-only win rate on actually-traded positions is **49.9%**
 (178 / 357) -- consistent with the per-signal Kelly stat below.
+
+**[2026-05-01 read-key for the table above.]** Row 1 (flat) and row 2
+(R3 quintile pin) are the historical 2026-04-25 fixtures.  Row 3 is
+what the same R3 code prints today with zero edits — pure synthetic
+window drift.  Row 4 is the current production line under Option A;
+compare it against row 3 (not row 2) to see Option A's effect on a
+shared corpus.  See `outputs/option_a_uniform_sizing.md` for the full
+diff and verdict.
 
 The Kelly run took 357 BUY CALLS trades and 0 BUY PUTS trades --
 BUY PUTS hit the negative-Kelly filter (f* = -0.0567) so the sizer

@@ -82,6 +82,45 @@ reversal (flip both flags back to `True`).  Synthetic baseline drift
 is now treated as a property of the today()-anchored synthetic
 window rather than a thing to chase — see §7 head note.
 
+**[2026-05-01 update — data-layer backfill: SEC depth 3y → 10y;
+Finnhub historical access verified at ~12-month depth.  See
+`outputs/sec_phase1_backfill_report.md`,
+`outputs/finnhub_historical_spike.md`,
+`outputs/finnhub_historical_spike_v2.md`,
+`outputs/finnhub_historical_spike_v3.md`.]**
+
+- **SEC depth.**  `config.DATA_PARAMS["sec_lookback_years"]` bumped
+  from 3 to 10.  Re-fetch + re-score added **228 new filings** across
+  5 of 6 single-name tickers (AAPL +55 to 2016-06-22; NVDA +46 to
+  2020-03-10; XOM +67 to 2019-12-02; UNH +51 to 2020-10-14; WMT +8
+  to 2023-02-21; **JPM +1, still clipped at 2025-05-01** by EDGAR's
+  `recent`-block ~1000-entry cap — Phase 2 work).  4 of the 6
+  tickers (AAPL, NVDA, XOM, UNH) now span both the **2020-COVID and
+  2022-Inflation** macro regimes; AAPL additionally covers
+  **2018-VolReturns** (10 new filings).  Downstream consumers
+  (`sentiment.merger.load_sec_sentiment`, `build_combined`, engine
+  `sec_aligned` feature) ingest the deepened history without code
+  change — verified by NVDA smoke test.
+
+- **News data.**  Three-spike chain on Finnhub free-tier
+  `company_news` established: `to=` parameter is honoured (v2 Test B
+  returned 243 articles dated within window six months back, not
+  near today); per-call window is truncated to the upper ~7-9 days
+  of the requested range; depth horizon sits at **~12 months**
+  (v3 Test E at 12mo populated, v3 Test F at 14mo empty).
+  **Chunked backfill is unblocked but not yet built.**  Cost
+  estimate: ~52 calls per ticker × 10 tickers = **~520 API calls
+  (~9 min wall clock at 60 calls/min)** plus FinBERT scoring of
+  ~100k articles.  Build scheduled as a separate session
+  (Phase 1.5 candidate, ahead of the mid-May ~15-trading-day
+  passive-accumulation checkpoint).
+
+- **Options chains.**  **Unchanged.**  This session did not touch
+  the BS-priced synthetic-pricing path in `backtest/engine.py`
+  (still uses 30-day rolling realised vol as sigma, no smile or term
+  structure) nor the forward-only `data/options_fetcher.py`
+  yfinance snapshots.  No historical chain integration in scope.
+
 ---
 
 ## 2. Architecture / module map
@@ -989,6 +1028,49 @@ on both R3 and flat drift checks (§7).
   parked at synthetic fits.
 
 ### 10.3 Known limitations (Path A SEC pipeline)
+
+> **[2026-05-01 update — Phase 1 SEC depth backfill landed.  See
+> `outputs/sec_phase1_backfill_report.md`.]**
+>
+> - **`sec_lookback_years = 3` is now `= 10`.**  Single-line config
+>   edit, ran fetcher + scorer for the 6 single-name tickers.  +228
+>   filings across 5 tickers.  AAPL deepened to 2016, NVDA/XOM/UNH
+>   deepened to 2019-2020 (covering 2020-COVID + 2022-Inflation),
+>   WMT only added 8 filings (Feb-May 2023 — no deeper history
+>   returned for WMT; possibly EDGAR `recent`-block at a different
+>   threshold or fewer 8-Ks per quarter).  **JPM still capped at
+>   2025-05-01** (only +1 filing) — `recent`-block clipping
+>   unchanged, see existing bullet below.
+> - **JPM `recent`-block ~1000-entry cap** (existing bullet, unchanged
+>   status): explicitly **Phase 2** work.  Walking the `files` chain
+>   to older submission archives is the documented fix; not in scope
+>   this session.
+> - **AAPL pre-2022 iXBRL stub-extraction** (existing bullet, unchanged
+>   status): explicitly **Phase 2** work.  The 2016-2020 backfill
+>   likely added more iXBRL-affected 10-Q filings beyond the 5
+>   already identified; sample inspection of new AAPL row scores
+>   recommended before relying on AAPL deep-history sentiment for
+>   OOS testing.
+> - **Item 1A Risk Factors not extracted** (new Phase 2 backlog item):
+>   the fetcher targets only Item 7 MD&A for 10-K/Q.  Risk Factors
+>   would be additive narrative-shift signal and are recommended
+>   alongside the iXBRL fix.
+> - **WMT shallow backfill** (new anomaly to investigate): only +8
+>   filings to 2023-02-21 despite the 10y depth bump.  Root cause
+>   not yet identified — may be EDGAR `recent`-block at a different
+>   threshold, fiscal-year offset shifting filing schedule, or simply
+>   a filer with sparser 8-K cadence.  Tag for Phase 2 alongside JPM.
+> - **Finnhub free-tier 12-month depth ceiling** (new, news pipeline
+>   not SEC, but documented here for the data-limitations grouping):
+>   three-spike verification chain
+>   (`outputs/finnhub_historical_spike{,_v2,_v3}.md`) established
+>   that the free-tier `company_news` endpoint serves at most ~12
+>   months of history.  Beyond that, requests return empty (not
+>   errors).  **Hard ceiling for news historical access on the
+>   current API key** — extending past 12 months requires either
+>   paid-tier upgrade or alternate news source (NewsAPI, RavenPack,
+>   etc., not yet evaluated).
+
 
 - **Pre-2022 AAPL iXBRL primary docs.**  Five AAPL 10-Q filings
   (2020-05-01, 2020-07-31, 2021-01-28, 2021-04-29, 2021-07-28)

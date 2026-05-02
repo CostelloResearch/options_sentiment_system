@@ -173,3 +173,17 @@ python main.py --dashboard --demo
 ```
 
 Real backtest quality improves as you accumulate daily pipeline runs.
+
+---
+
+## Research Reports
+
+This project is research-stage. The reports below document validation work, audit findings, and known limitations, including failures.
+
+- **[Out-of-sample integrity audit](outputs/oos_audit_report.md)** — 75/25 chronological holdout. Sharpe collapsed from +0.41 in-sample to −0.60 OOS; Q5 confidence bucket inverted. Triggered the walk-forward investigation below.
+- **[Walk-forward validation](outputs/walkforward_audit_report.md)** — 195 daily refit windows. Sharpe −0.05 confirmed degradation; Q5 inversion bulletproof across windows. Established that the synthetic baseline does not generalize.
+- **[Option A: uniform sizing](outputs/option_a_uniform_sizing.md)** — Disabled the learned confidence model and quintile sizing. In-sample Sharpe held flat (0.51 → 0.50), drawdown improved 30%, confirming quintile sizing was an exposure amplifier rather than a differential-edge extractor.
+- **[SEC depth backfill (Phase 1)](outputs/sec_phase1_backfill_report.md)** — Expanded SEC filing coverage from 3 to 10 years across 5 of 6 single-name tickers. Now spans 2018, 2020 COVID, and 2022 inflation regimes.
+- **[Finnhub historical spike chain (v3)](outputs/finnhub_historical_spike_v3.md)** — Verified Finnhub free-tier `to=` parameter is honored at ~12-month depth. Chunked backfill of ~520 calls is feasible.
+
+Project state and locked decisions are tracked in [`PROJECT_STATE.md`](PROJECT_STATE.md). Engineering conventions and architectural invariants are in [`CLAUDE.md`](CLAUDE.md).

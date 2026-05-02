@@ -89,7 +89,7 @@ DATA_PARAMS = {
     "iv_history_days": 252,         # Trading days for IV Rank calculation (~1 year)
 
     # SEC EDGAR backfill
-    "sec_lookback_years": 3,              # how far back to pull filings
+    "sec_lookback_years": 10,             # how far back to pull filings
     "sec_filing_types":    ["10-K", "10-Q", "8-K"],
     "sec_rate_limit_rps":  10,            # SEC enforces 10 requests/sec max
     "sec_request_timeout": 30,            # seconds per HTTP request

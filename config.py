@@ -14,7 +14,7 @@ import os
 # Set these as environment variables (preferred) or replace the fallback strings.
 # Never commit real keys to version control.
 # ---------------------------------------------------------------------------
-FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "d7ldt79r01qm7o0bg2v0d7ldt79r01qm7o0bg2vg")
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "")
 
 # SEC EDGAR requires a descriptive User-Agent containing a contact email.
 # Format: "CompanyOrProject Name contact@example.com"

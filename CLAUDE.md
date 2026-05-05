@@ -12,11 +12,17 @@ conventions or locked decisions change.  For the living state of the project
 End-to-end options-trading research pipeline: ingests news + SEC sentiment,
 combines it with IV Rank to emit a directional signal, translates each signal
 into a vertical-spread ticket (BS-fair-value pricing + friction), sizes the
-position with 0.25× fractional Kelly scaled by a fitted logistic confidence
-model and subject to strategy-segregated capital buckets, and backtests over
-5 years of daily bars.  The system is designed to be interview-defensible:
-every threshold, formula, and abstraction is justified in code comments and
-validated by a decay study.
+position with a uniform per-trade fraction (0.38%) under a global 6%
+portfolio cap (Option A, 2026-05-01; quintile-by-confidence and 0.25×
+fractional Kelly with strategy-segregated buckets retained behind flags
+for A/B), and backtests over 5 years of daily bars.  The system is
+designed to be interview-defensible: every threshold, formula, and
+abstraction is justified in code comments and validated by decay and OOS
+audit studies.  Real-mode validation completed 2026-05-04 with both OOS
+audits returning positive verdicts (PARTIAL on 75/25 chronological
+holdout, WINDOW-DEPENDENT on walk-forward) on a 12-month real-news
+corpus, with concentration and single-regime caveats documented in
+PROJECT_STATE §1 and §10.
 
 ---
 
@@ -70,7 +76,7 @@ one place and both paths pick it up.
   - `combined_sentiment_{TICKER}.csv` — merger output
   - `backtest_{TICKER}_demo.csv` — flat-sizing trade log
   - `backtest_{TICKER}_demo_kelly.csv` — Kelly-sizing trade log
-  - `kelly_stats.csv`, `confidence_model.json` — fitted model artifacts
+  - `kelly_stats.csv`, `confidence_model.json`, `quintile_edges.json` — fitted model artifacts.  Note: under Option A (2026-05-01), `confidence_model.json` and `quintile_edges.json` are preserved on disk for reversal but not loaded — see locked decisions #2 and #4.
   - Study markdowns: `outputs/{study_name}.md`
 - **Config pattern:** user-level tuning (tickers, signal thresholds) lives
   in `config.py`.  Algorithmic constants (Kelly fraction, delta targets,
@@ -85,6 +91,10 @@ one place and both paths pick it up.
   for SPY/IWM/GLD/TLT, so they fall back to news-only sentiment without
   erroring).  Keep these four exports in sync when the universe changes.
 - **No emojis in source or docs.**
+- **Every code-change session ends with a PROJECT_STATE §12 entry.**
+  Even a two-sentence note.  PROJECT_STATE is the cold-start
+  reference; if a change isn't there, the next session has no record
+  of it.  Documentation-only sessions (no code touched) are exempt.
 - **Comments justify the *why*.** If a constant has a number, it has a
   docstring explaining why it's that number.  Match this style in new code.
 - **No scikit-learn.** The logistic model is hand-rolled IRLS on top of
@@ -112,25 +122,47 @@ conversation first.
    see PROJECT_STATE §10.2.A).  See PROJECT_STATE §7.0.3 for the
    per-sector decay that flagged BUY PUTS as tech-concentrated.
 
-2. **Production sizing is QUINTILE per-trade cap (R3).**
-   `position_sizer.USE_STRATEGY_BUCKETS = False`; `size_trade()` picks
-   the per-trade fraction from `QUINTILE_FRAC` (Q1 0.1% -> Q5 0.8%)
-   against the global 6% portfolio cap.  Adopted after the three-regime
-   study flipped Kelly P&L from -$3k to +$12k while cutting BUY PUTS
-   block rate 58% -> 29%.  See PROJECT_STATE §6 and §9.
-   Legacy 0.25x fractional Kelly with strategy buckets is retained
-   behind `USE_STRATEGY_BUCKETS=True` for A/B only.  Full Kelly is too
-   variance-heavy on finite samples; we also don't use it.
+2. **Production sizing is UNIFORM per-trade fractional sizing (Option
+   A, 2026-05-01).**  `position_sizer.USE_QUINTILE_SIZING = False` and
+   `USE_STRATEGY_BUCKETS = False`; `size_trade()` returns
+   `UNIFORM_PER_TRADE_FRAC = 0.0038` per accepted trade (the implied
+   mean of the prior `QUINTILE_FRAC` table) against the unchanged
+   global 6% portfolio cap.  Adopted after the OOS audits (75/25 +
+   walk-forward, see PROJECT_STATE §7 head note + §6 Option A entry)
+   showed quintile sizing was an exposure amplifier rather than a
+   differential-edge extractor: Q5 inverted +$3,674 in-sample to
+   −$5,685 walk-forward, and disabling quintile sizing cut walk-forward
+   max DD ~30% (−$15,312 → −$10,705) while leaving Sharpe statistically
+   equivalent.  **Status: provisional pending real-data validation in
+   mid-May 2026.**  Reversal path: set `USE_QUINTILE_SIZING = True` in
+   `position_sizer.py` (paired with the locked-decision-#4 reversal).
+   The JSON artifact at `data/raw/quintile_edges.json` is preserved on
+   disk for instant reversal — no retraining required.  Legacy
+   quintile sizing and segregated-bucket Kelly are both retained
+   behind their respective flags for A/B comparison only.  Full Kelly
+   is too variance-heavy on finite samples; we also don't use it.
 
 3. **`STRATEGY_BUCKETS` is legacy-only.**  Values (3.00 / 1.50 / 0.75 /
    0.75) and the `sum == MAX_PORTFOLIO_RISK` invariant are kept so
    `USE_STRATEGY_BUCKETS=True` still works for A/B comparisons against
    historical runs.  Don't wire new production features to this dict.
 
-4. **Confidence is a fitted logistic model when
-   `data/raw/confidence_model.json` exists, legacy tiered formula
-   otherwise.**  Both `signal_engine.py` and `backtest/engine.py` check for
-   the file at runtime and swap automatically.  Don't hardcode a choice.
+4. **Confidence uses the legacy tiered formula (Option A, 2026-05-01).**
+   `confidence_model.USE_LEARNED_MODEL = False`; a one-line gate at the
+   top of `load_model()` returns `None` regardless of whether
+   `data/raw/confidence_model.json` is on disk.  Both `signal_engine.py`
+   and `backtest/engine.py` therefore fall through to their legacy
+   tiered-confidence formulas on every call — no call-site changes
+   needed.  Paired with locked decision #2: the audit chain (see
+   PROJECT_STATE §6 Option A entry) found the learned model's
+   "highest confidence" bucket was systematically anti-predictive on
+   walk-forward data, and the quintile sizing that amplified those
+   bets was the active loss mechanism.  **Status: provisional, reverses
+   together with #2 if real-data validation favours the learned-model +
+   quintile path.**  Reversal path: set `USE_LEARNED_MODEL = True` in
+   `confidence_model.py`.  The JSON artifact at
+   `data/raw/confidence_model.json` is preserved on disk for instant
+   reversal — no retraining required.
 
 5. **SELL CALLS is DISABLED by the decay study** (no horizon produced mean
    > 0 across 61 trades).  Its bucket is reserved but unused.  Don't
@@ -150,7 +182,24 @@ conversation first.
 
 ## How to run
 
-### Full segregated-Kelly study (flagship)
+### R3 production baseline (flagship)
+
+```bash
+.venv/Scripts/python.exe scripts/r3_baseline.py
+# Reuse existing flat + kelly logs on disk:
+.venv/Scripts/python.exe scripts/r3_baseline.py --skip-run
+# Real sentiment instead of synthetic demo (requires backfill on disk):
+.venv/Scripts/python.exe scripts/r3_baseline.py --real
+```
+
+Writes `outputs/r3_production_baseline.md` plus per-ticker backtest CSVs
+under `data/raw/`.  Drift-checks against pinned baselines so any change
+to engine / sizing / signal code surfaces as a numeric diff in the
+report header.  Under Option A (2026-05-01) the same script reproduces
+the uniform-sizing production line; the in-code drift pins are updated
+when the production regime changes.
+
+### Legacy segregated-Kelly study (A/B only)
 
 ```bash
 .venv/Scripts/python.exe scripts/segregated_kelly_report.py
@@ -161,7 +210,10 @@ conversation first.
 ```
 
 Writes `outputs/segregated_kelly_report.md` plus per-ticker backtest CSVs
-under `data/raw/`.
+under `data/raw/`.  Retained for A/B comparison against the prior
+segregated-bucket regime — set `position_sizer.USE_STRATEGY_BUCKETS = True`
+to reproduce the historical numbers.  Not the current production
+flagship (see locked decisions #2 and #3).
 
 ### Classic flat-vs-Kelly + decay study
 

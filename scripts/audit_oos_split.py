@@ -75,9 +75,11 @@ SPLIT_FRAC = 0.75
 # Loaders
 # ---------------------------------------------------------------------------
 
-def load_flat_corpus(real_mode: bool = False) -> pd.DataFrame:
+def load_flat_corpus(real_mode: bool = False,
+                     tickers: list | None = None) -> pd.DataFrame:
+    tickers = tickers if tickers is not None else config.TICKERS
     frames = []
-    for t in config.TICKERS:
+    for t in tickers:
         fname = f"backtest_{t}.csv" if real_mode else f"backtest_{t}_demo.csv"
         p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
@@ -85,10 +87,12 @@ def load_flat_corpus(real_mode: bool = False) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
-def load_kelly_logs(real_mode: bool = False) -> pd.DataFrame:
+def load_kelly_logs(real_mode: bool = False,
+                    tickers: list | None = None) -> pd.DataFrame:
     """In-sample reference: existing production Kelly logs."""
+    tickers = tickers if tickers is not None else config.TICKERS
     frames = []
-    for t in config.TICKERS:
+    for t in tickers:
         fname = f"backtest_{t}_kelly.csv" if real_mode else f"backtest_{t}_demo_kelly.csv"
         p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
@@ -292,6 +296,9 @@ def fmt_money(x):
 # ---------------------------------------------------------------------------
 
 def per_ticker(df: pd.DataFrame, label: str) -> pd.DataFrame:
+    cols = ["ticker", "label", "n_sig", "n_taken", "pnl"]
+    if df.empty or "ticker" not in df.columns:
+        return pd.DataFrame(columns=cols)
     pnl = df["pnl_total"].fillna(0.0) if "pnl_total" in df.columns else df["pnl"].fillna(0.0) * 100.0
     df = df.assign(_pnl=pnl)
     rows = []
@@ -306,7 +313,7 @@ def per_ticker(df: pd.DataFrame, label: str) -> pd.DataFrame:
             "n_taken": n_taken,
             "pnl":     round(float(sub["_pnl"].sum()), 2),
         })
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=cols)
 
 
 def per_quintile(df: pd.DataFrame, edges: list, label: str,
@@ -356,15 +363,28 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
                  h_in_sample, h_train, h_test,
                  train_stats, train_edges, train_model,
                  prod_sigs_pre, prod_sigs_post,
-                 mode_label: str = "DEMO") -> str:
+                 mode_label: str = "DEMO",
+                 audit_tickers: list | None = None,
+                 missing_tickers: list | None = None) -> str:
     _flat_pat  = "backtest_*.csv"        if mode_label == "REAL" else "backtest_*_demo.csv"
     _kelly_pat = "backtest_*_kelly.csv"  if mode_label == "REAL" else "backtest_*_demo_kelly.csv"
     _out_file  = "oos_audit_report_real.md" if mode_label == "REAL" else "oos_audit_report.md"
     _oos_tag   = "*_oos_train_real.*"    if mode_label == "REAL" else "*_oos_train.*"
     _flag      = " --real"               if mode_label == "REAL" else ""
+
+    audit_tickers = audit_tickers if audit_tickers is not None else list(config.TICKERS)
+    missing_tickers = missing_tickers if missing_tickers is not None else []
+    is_partial = (mode_label == "REAL") and bool(missing_tickers)
+    n_audit    = len(audit_tickers)
+    n_total    = len(config.TICKERS)
+
     md = []
     md.append("# Out-of-Sample Audit -- 75/25 Chronological Holdout\n\n")
-    md.append(f"**Mode: {mode_label}**\n\n")
+    if is_partial:
+        md.append(f"**Mode: {mode_label} (partial coverage: "
+                  f"{n_audit} of {n_total} tickers)**\n\n")
+    else:
+        md.append(f"**Mode: {mode_label}**\n\n")
     md.append(
         "_Tests how much of the +$6,775 / Sharpe 0.41 / 357 trades R3 "
         "production baseline is in-sample inflation vs out-of-sample edge.  "
@@ -391,6 +411,14 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     # 2. Methodology
     # =====================================================================
     md.append("## 2. Methodology\n\n")
+    if is_partial:
+        included = ", ".join(audit_tickers) if audit_tickers else "_(none)_"
+        miss_str = ", ".join(f"{t} ({reason})" for t, reason in missing_tickers)
+        md.append(
+            f"**Coverage:** real-mode corpus partial -- "
+            f"{n_audit} of {n_total} tickers participate in this audit.  "
+            f"Included: {included}.  Missing: {miss_str}.\n\n"
+        )
     md.append(
         f"- **Implementation choice:** Path (b) -- post-hoc re-derivation "
         f"of Kelly sizing on the existing flat corpus.  The per-share "
@@ -518,6 +546,8 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     # 4. Per-ticker breakdown
     # =====================================================================
     md.append("## 4. Per-ticker breakdown\n\n")
+    if is_partial:
+        md.append(f"_({n_audit} tickers in audit)_\n\n")
     in_sample_t = per_ticker(full_kelly, "in_sample")
     test_t = per_ticker(test_eval, "test_fold")
     train_t = per_ticker(train_eval, "train_fold")
@@ -785,18 +815,65 @@ def main(real_mode: bool = False):
         oos_edges_path = OOS_EDGES_PATH
         oos_model_path = OOS_MODEL_PATH
 
-    # Guard: fail early if real-mode corpus is missing
-    if real_mode:
-        missing = [t for t in config.TICKERS
-                   if not os.path.exists(os.path.join(RAW_DIR, f"backtest_{t}.csv"))]
-        if missing:
-            first = missing[0]
+    # Coverage detection: identify which tickers have BOTH a flat log and a
+    # kelly log on disk; partial real-mode coverage is now allowed.
+    def _flat_name(t: str) -> str:
+        return f"backtest_{t}.csv" if real_mode else f"backtest_{t}_demo.csv"
+    def _kelly_name(t: str) -> str:
+        return f"backtest_{t}_kelly.csv" if real_mode else f"backtest_{t}_demo_kelly.csv"
+
+    present_flat  = [t for t in config.TICKERS
+                     if os.path.exists(os.path.join(RAW_DIR, _flat_name(t)))]
+    present_kelly = [t for t in config.TICKERS
+                     if os.path.exists(os.path.join(RAW_DIR, _kelly_name(t)))]
+    audit_tickers   = sorted(set(present_flat) & set(present_kelly))
+    missing_tickers = []
+    for t in config.TICKERS:
+        if t in audit_tickers:
+            continue
+        in_flat  = t in present_flat
+        in_kelly = t in present_kelly
+        if not in_flat and not in_kelly:
+            reason = "both missing"
+        elif not in_flat:
+            reason = "flat missing"
+        else:
+            reason = "kelly missing"
+        missing_tickers.append((t, reason))
+
+    if len(audit_tickers) == 0:
+        # Zero coverage -- preserve existing fail-early style.
+        if real_mode:
+            first = missing_tickers[0][0] if missing_tickers else config.TICKERS[0]
             print(f"[oos_audit] ERROR: real-mode corpus not found at "
                   f"data/raw/backtest_{first}.csv; "
-                  f"has scripts/r3_baseline.py --real been run?")
-            if len(missing) > 1:
+                  f"has scripts/r3_baseline.py --real been run?", file=sys.stderr)
+            others = [t for t, _ in missing_tickers[1:]]
+            if others:
                 print(f"[oos_audit]   Also missing: "
-                      f"{', '.join(f'backtest_{t}.csv' for t in missing[1:])}")
+                      f"{', '.join(f'backtest_{t}.csv' for t in others)}",
+                      file=sys.stderr)
+        else:
+            print(f"[oos_audit] ERROR: demo corpus not found "
+                  f"(0 of {len(config.TICKERS)} tickers have both flat + "
+                  f"kelly logs on disk).", file=sys.stderr)
+        sys.exit(1)
+
+    if missing_tickers:
+        if real_mode:
+            included = ",".join(audit_tickers)
+            miss_str = ", ".join(f"{t} ({reason})" for t, reason in missing_tickers)
+            print(f"[oos_audit] partial coverage: {len(audit_tickers)} of "
+                  f"{len(config.TICKERS)} tickers -- included: {included} -- "
+                  f"missing: {miss_str}", file=sys.stderr)
+        else:
+            # Demo mode partial coverage is a regression signal -- fail loudly.
+            miss_str = ", ".join(f"{t} ({reason})" for t, reason in missing_tickers)
+            print(f"[oos_audit] ERROR: demo corpus partial -- "
+                  f"{len(audit_tickers)} of {len(config.TICKERS)} tickers "
+                  f"present.  Missing: {miss_str}.  Demo coverage completeness "
+                  f"is a regression signal; not relaxing the demo guard.",
+                  file=sys.stderr)
             sys.exit(1)
 
     # Snapshot production-artifact signatures before we touch anything
@@ -807,8 +884,10 @@ def main(real_mode: bool = False):
     }
 
     print(f"[oos_audit] mode: {mode_label}")
+    print(f"[oos_audit] coverage: {len(audit_tickers)}/{len(config.TICKERS)} "
+          f"tickers ({','.join(audit_tickers)})")
     print("[oos_audit] loading flat corpus...")
-    flat = load_flat_corpus(real_mode=real_mode)
+    flat = load_flat_corpus(real_mode=real_mode, tickers=audit_tickers)
     flat = flat.sort_values("entry_date").reset_index(drop=True)
     print(f"[oos_audit] flat corpus: {len(flat)} signal rows.")
 
@@ -839,7 +918,7 @@ def main(real_mode: bool = False):
     test_eval  = evaluate_fold(test_flat,  train_stats, train_edges, train_model)
 
     print("[oos_audit] loading production Kelly logs (in-sample reference)...")
-    full_kelly = load_kelly_logs(real_mode=real_mode)
+    full_kelly = load_kelly_logs(real_mode=real_mode, tickers=audit_tickers)
 
     print("[oos_audit] computing headline metrics...")
     h_in_sample = headline(full_kelly)
@@ -864,6 +943,7 @@ def main(real_mode: bool = False):
         train_stats=train_stats, train_edges=train_edges, train_model=train_model,
         prod_sigs_pre=prod_sigs_pre, prod_sigs_post=prod_sigs_post,
         mode_label=mode_label,
+        audit_tickers=audit_tickers, missing_tickers=missing_tickers,
     )
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(md)

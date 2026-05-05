@@ -22,6 +22,29 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
 
 
+# ---------------------------------------------------------------------------
+# Backfill support: typed exception + chunked-window fetch
+#
+# The chunked historical backfill (see scripts/backfill_news_history.py) walks
+# `to=` backwards in ~14-day windows.  An empty response means we hit the
+# Finnhub free-tier ~12-month depth ceiling -- a normal stop signal -- whereas
+# any exception during the call is a transient failure that should be retried.
+# The orchestrator distinguishes the two: empty DataFrame = ceiling; raised
+# BackfillFetchError = retry.  This decoupling keeps the production fetch_news
+# behaviour untouched.
+# ---------------------------------------------------------------------------
+
+class BackfillFetchError(Exception):
+    """Raised by fetch_news_chunk on a failed Finnhub call so the backfill
+    orchestrator's retry loop can distinguish API failure from depth ceiling."""
+    pass
+
+
+# Chunk-CSV schema -- kept identical to fetch_news output so a downstream
+# scoring step can read either flavour with the same column expectations.
+_CHUNK_COLUMNS = ["ticker", "date", "datetime", "headline", "summary", "source", "url"]
+
+
 def _build_client() -> finnhub.Client:
     """Create and return an authenticated Finnhub client."""
     if config.FINNHUB_API_KEY == "YOUR_FINNHUB_API_KEY_HERE":
@@ -150,6 +173,108 @@ def fetch_all_tickers(tickers: list = None, **kwargs) -> dict[str, pd.DataFrame]
         time.sleep(1.5)
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Backfill: chunked historical fetch (sibling of fetch_news)
+# ---------------------------------------------------------------------------
+
+def fetch_news_chunk(
+    ticker: str,
+    to_date: datetime.date,
+    days: int = 14,
+    save_dir: str | None = None,
+) -> pd.DataFrame:
+    """
+    Fetch a single Finnhub company_news chunk for a backwards-walking
+    historical backfill.  Window is [to_date - days, to_date].
+
+    The Finnhub free-tier endpoint returns the upper ~7-9 days of the
+    requested range (per the v1/v2/v3 spike chain in
+    outputs/finnhub_historical_spike*.md); days=14 oversizes deliberately so
+    successive chunks overlap, which the orchestrator handles via dedup.
+
+    Parameters
+    ----------
+    ticker : str
+        Stock symbol, e.g. "AAPL".
+    to_date : datetime.date
+        Upper bound of the requested window (inclusive on Finnhub's side).
+    days : int
+        Window width in calendar days.  Default 14 matches the spike geometry.
+    save_dir : str | None
+        If provided, writes `news_{ticker}_chunk_{to_date}.csv` into this
+        directory via atomic write (tmp + os.replace).  Skip-if-exists is
+        the orchestrator's job, not this function's.
+
+    Returns
+    -------
+    pd.DataFrame
+        Articles in the window, schema identical to fetch_news.  Empty
+        DataFrame means the API responded successfully with zero articles
+        -- the orchestrator interprets this as the depth ceiling.
+
+    Raises
+    ------
+    BackfillFetchError
+        Wraps any exception from the Finnhub client or response
+        normalisation.  Lets the caller's retry loop distinguish "API
+        failed" (retry) from "API returned []" (depth ceiling).
+    """
+    from_date = to_date - datetime.timedelta(days=days)
+    from_str  = from_date.strftime("%Y-%m-%d")
+    to_str    = to_date.strftime("%Y-%m-%d")
+
+    try:
+        client = _build_client()
+        raw_articles = client.company_news(ticker, _from=from_str, to=to_str)
+    except Exception as e:
+        raise BackfillFetchError(
+            f"Finnhub call failed for {ticker} _from={from_str} to={to_str}: {e}"
+        ) from e
+
+    if not raw_articles:
+        # Honest empty -- depth ceiling signal.  Caller decides whether to
+        # treat as ceiling (>=2 chunks already done) or as auth failure.
+        return pd.DataFrame(columns=_CHUNK_COLUMNS)
+
+    try:
+        rows = []
+        for article in raw_articles:
+            ts = article.get("datetime", 0)
+            dt = datetime.datetime.fromtimestamp(ts) if ts else None
+            rows.append({
+                "ticker":   ticker,
+                "date":     dt.date() if dt else None,
+                "datetime": dt,
+                "headline": article.get("headline", ""),
+                "summary":  article.get("summary", ""),
+                "source":   article.get("source", ""),
+                "url":      article.get("url", ""),
+            })
+        df = pd.DataFrame(rows, columns=_CHUNK_COLUMNS)
+        # Dedup within-chunk by headline (same article served under multiple
+        # Finnhub categories).  Cross-chunk dedup is the scoring step's job.
+        df.drop_duplicates(subset=["headline"], inplace=True)
+        # Ascending by datetime so chunk CSVs read chronologically; this
+        # differs from fetch_news (which sorts descending for eyeballing) --
+        # the backfill convention favours chronological order for stitching.
+        df.sort_values("datetime", ascending=True, inplace=True)
+        df.reset_index(drop=True, inplace=True)
+    except Exception as e:
+        raise BackfillFetchError(
+            f"Response normalisation failed for {ticker} to={to_str}: {e}"
+        ) from e
+
+    if save_dir is not None and not df.empty:
+        os.makedirs(save_dir, exist_ok=True)
+        path = os.path.join(save_dir, f"news_{ticker}_chunk_{to_str}.csv")
+        # Atomic write so a SIGKILL mid-write can't corrupt the chunk file
+        tmp = path + ".tmp"
+        df.to_csv(tmp, index=False)
+        os.replace(tmp, path)
+
+    return df
 
 
 # ---------------------------------------------------------------------------

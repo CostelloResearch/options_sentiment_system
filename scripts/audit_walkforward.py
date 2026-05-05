@@ -79,9 +79,11 @@ OOS_75_25 = {
 # Loaders + headline + helpers (mirror audit_oos_split.py)
 # ---------------------------------------------------------------------------
 
-def load_flat_corpus(real_mode: bool = False) -> pd.DataFrame:
+def load_flat_corpus(real_mode: bool = False,
+                     tickers: list | None = None) -> pd.DataFrame:
+    tickers = tickers if tickers is not None else config.TICKERS
     frames = []
-    for t in config.TICKERS:
+    for t in tickers:
         fname = f"backtest_{t}.csv" if real_mode else f"backtest_{t}_demo.csv"
         p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
@@ -89,9 +91,11 @@ def load_flat_corpus(real_mode: bool = False) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
-def load_kelly_logs(real_mode: bool = False) -> pd.DataFrame:
+def load_kelly_logs(real_mode: bool = False,
+                    tickers: list | None = None) -> pd.DataFrame:
+    tickers = tickers if tickers is not None else config.TICKERS
     frames = []
-    for t in config.TICKERS:
+    for t in tickers:
         fname = f"backtest_{t}_kelly.csv" if real_mode else f"backtest_{t}_demo_kelly.csv"
         p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
@@ -344,8 +348,21 @@ def walk_forward(flat: pd.DataFrame) -> tuple[pd.DataFrame, int, list, pd.Timest
           f"{n_warmup_excluded} warmup-excluded, {len(eval_rows)} evaluable, "
           f"{elapsed:.1f}s")
 
-    return (pd.DataFrame(eval_rows), n_warmup_excluded,
-            refit_events, warmup_cutoff_date)
+    if eval_rows:
+        eval_df = pd.DataFrame(eval_rows)
+    else:
+        # Warmup never reached (e.g. partial-coverage real-mode corpus
+        # smaller than WARMUP_N_TRADES).  Return an empty frame with the
+        # expected schema so downstream callers can rely on the columns;
+        # dedupe overlapping names (kelly_reason appears in both the flat
+        # log and the wf-augmented columns).
+        cols = list(flat.columns)
+        for extra in ("wf_contracts", "kelly_reason", "wf_q",
+                      "wf_confidence", "pnl_total"):
+            if extra not in cols:
+                cols.append(extra)
+        eval_df = pd.DataFrame(columns=cols)
+    return (eval_df, n_warmup_excluded, refit_events, warmup_cutoff_date)
 
 
 # ---------------------------------------------------------------------------
@@ -429,6 +446,8 @@ def per_quintile_in_sample(full_kelly: pd.DataFrame) -> pd.DataFrame:
 
 
 def per_ticker(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "ticker" not in df.columns:
+        return pd.DataFrame(columns=["ticker", "n_taken", "pnl"])
     pnl_col = "pnl_total" if "pnl_total" in df.columns else "pnl"
     rows = []
     for t in sorted(df["ticker"].unique()):
@@ -438,7 +457,7 @@ def per_ticker(df: pd.DataFrame) -> pd.DataFrame:
             "n_taken": int(taken_mask(sub).sum()),
             "pnl":     round(float(sub[pnl_col].fillna(0.0).sum()), 2),
         })
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=["ticker", "n_taken", "pnl"])
 
 
 # ---------------------------------------------------------------------------
@@ -459,14 +478,27 @@ def sample_events(events: list, k: int = 7) -> list:
 def build_report(*, flat, eval_df, n_warmup, refit_events,
                  warmup_cutoff, full_kelly,
                  h_in_sample, h_wf, rolling_df, prod_sigs_pre, prod_sigs_post,
-                 mode_label: str = "DEMO") -> str:
+                 mode_label: str = "DEMO",
+                 audit_tickers: list | None = None,
+                 missing_tickers: list | None = None) -> str:
     _flat_pat  = "backtest_*.csv"        if mode_label == "REAL" else "backtest_*_demo.csv"
     _kelly_pat = "backtest_*_kelly.csv"  if mode_label == "REAL" else "backtest_*_demo_kelly.csv"
     _out_file  = "walkforward_audit_report_real.md" if mode_label == "REAL" else "walkforward_audit_report.md"
     _flag      = " --real"               if mode_label == "REAL" else ""
+
+    audit_tickers = audit_tickers if audit_tickers is not None else list(config.TICKERS)
+    missing_tickers = missing_tickers if missing_tickers is not None else []
+    is_partial = (mode_label == "REAL") and bool(missing_tickers)
+    n_audit    = len(audit_tickers)
+    n_total    = len(config.TICKERS)
+
     md = []
     md.append("# Walk-Forward Audit -- Daily Refit on R3 Baseline\n\n")
-    md.append(f"**Mode: {mode_label}**\n\n")
+    if is_partial:
+        md.append(f"**Mode: {mode_label} (partial coverage: "
+                  f"{n_audit} of {n_total} tickers)**\n\n")
+    else:
+        md.append(f"**Mode: {mode_label}**\n\n")
 
     # =====================================================================
     # 1. Question and methodology summary
@@ -490,6 +522,14 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     # 2. Walk-forward design specifics
     # =====================================================================
     md.append("## 2. Walk-forward design specifics\n\n")
+    if is_partial:
+        included = ", ".join(audit_tickers) if audit_tickers else "_(none)_"
+        miss_str = ", ".join(f"{t} ({reason})" for t, reason in missing_tickers)
+        md.append(
+            f"**Coverage:** real-mode corpus partial -- "
+            f"{n_audit} of {n_total} tickers participate in this audit.  "
+            f"Included: {included}.  Missing: {miss_str}.\n\n"
+        )
     md.append(
         f"- **Refit cadence.**  Logically daily.  Implementation refits "
         f"only when the training-corpus size grows (a new accepted trade "
@@ -546,10 +586,15 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     # =====================================================================
     md.append("## 4. Three-column comparison: in-sample / 75-25-OOS / walk-forward\n\n")
 
-    aapl_in   = float(full_kelly[full_kelly["ticker"] == "AAPL"]["pnl_total"].sum())
-    nvda_in   = float(full_kelly[full_kelly["ticker"] == "NVDA"]["pnl_total"].sum())
-    aapl_wf   = float(eval_df[eval_df["ticker"] == "AAPL"]["pnl_total"].sum())
-    nvda_wf   = float(eval_df[eval_df["ticker"] == "NVDA"]["pnl_total"].sum())
+    def _ticker_pnl(df: pd.DataFrame, t: str) -> float:
+        if df.empty or "ticker" not in df.columns or "pnl_total" not in df.columns:
+            return 0.0
+        s = pd.to_numeric(df[df["ticker"] == t]["pnl_total"], errors="coerce")
+        return float(s.fillna(0.0).sum()) if len(s) else 0.0
+    aapl_in   = _ticker_pnl(full_kelly, "AAPL")
+    nvda_in   = _ticker_pnl(full_kelly, "NVDA")
+    aapl_wf   = _ticker_pnl(eval_df, "AAPL")
+    nvda_wf   = _ticker_pnl(eval_df, "NVDA")
 
     in_q  = per_quintile_in_sample(full_kelly)
     wf_q  = per_quintile_wf(eval_df)
@@ -710,6 +755,8 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     # 8. Per-ticker breakdown
     # =====================================================================
     md.append("## 8. Per-ticker breakdown\n\n")
+    if is_partial:
+        md.append(f"_({n_audit} tickers in audit)_\n\n")
     in_t = per_ticker(full_kelly)
     in_t.columns = ["ticker", "n_taken_in", "pnl_in"]
     wf_t = per_ticker(eval_df)
@@ -922,18 +969,63 @@ def main(real_mode: bool = False):
     out_path   = (os.path.join(OUT_DIR, "walkforward_audit_report_real.md")
                   if real_mode else OUT_PATH)
 
-    # Guard: fail early if real-mode corpus is missing
-    if real_mode:
-        missing = [t for t in config.TICKERS
-                   if not os.path.exists(os.path.join(RAW_DIR, f"backtest_{t}.csv"))]
-        if missing:
-            first = missing[0]
+    # Coverage detection: identify which tickers have BOTH a flat log and a
+    # kelly log on disk; partial real-mode coverage is now allowed.
+    def _flat_name(t: str) -> str:
+        return f"backtest_{t}.csv" if real_mode else f"backtest_{t}_demo.csv"
+    def _kelly_name(t: str) -> str:
+        return f"backtest_{t}_kelly.csv" if real_mode else f"backtest_{t}_demo_kelly.csv"
+
+    present_flat  = [t for t in config.TICKERS
+                     if os.path.exists(os.path.join(RAW_DIR, _flat_name(t)))]
+    present_kelly = [t for t in config.TICKERS
+                     if os.path.exists(os.path.join(RAW_DIR, _kelly_name(t)))]
+    audit_tickers   = sorted(set(present_flat) & set(present_kelly))
+    missing_tickers = []
+    for t in config.TICKERS:
+        if t in audit_tickers:
+            continue
+        in_flat  = t in present_flat
+        in_kelly = t in present_kelly
+        if not in_flat and not in_kelly:
+            reason = "both missing"
+        elif not in_flat:
+            reason = "flat missing"
+        else:
+            reason = "kelly missing"
+        missing_tickers.append((t, reason))
+
+    if len(audit_tickers) == 0:
+        if real_mode:
+            first = missing_tickers[0][0] if missing_tickers else config.TICKERS[0]
             print(f"[wf_audit] ERROR: real-mode corpus not found at "
                   f"data/raw/backtest_{first}.csv; "
-                  f"has scripts/r3_baseline.py --real been run?")
-            if len(missing) > 1:
+                  f"has scripts/r3_baseline.py --real been run?", file=sys.stderr)
+            others = [t for t, _ in missing_tickers[1:]]
+            if others:
                 print(f"[wf_audit]   Also missing: "
-                      f"{', '.join(f'backtest_{t}.csv' for t in missing[1:])}")
+                      f"{', '.join(f'backtest_{t}.csv' for t in others)}",
+                      file=sys.stderr)
+        else:
+            print(f"[wf_audit] ERROR: demo corpus not found "
+                  f"(0 of {len(config.TICKERS)} tickers have both flat + "
+                  f"kelly logs on disk).", file=sys.stderr)
+        sys.exit(1)
+
+    if missing_tickers:
+        if real_mode:
+            included = ",".join(audit_tickers)
+            miss_str = ", ".join(f"{t} ({reason})" for t, reason in missing_tickers)
+            print(f"[wf_audit] partial coverage: {len(audit_tickers)} of "
+                  f"{len(config.TICKERS)} tickers -- included: {included} -- "
+                  f"missing: {miss_str}", file=sys.stderr)
+        else:
+            miss_str = ", ".join(f"{t} ({reason})" for t, reason in missing_tickers)
+            print(f"[wf_audit] ERROR: demo corpus partial -- "
+                  f"{len(audit_tickers)} of {len(config.TICKERS)} tickers "
+                  f"present.  Missing: {miss_str}.  Demo coverage completeness "
+                  f"is a regression signal; not relaxing the demo guard.",
+                  file=sys.stderr)
             sys.exit(1)
 
     prod_sigs_pre = {
@@ -943,8 +1035,10 @@ def main(real_mode: bool = False):
     }
 
     print(f"[wf_audit] mode: {mode_label}")
+    print(f"[wf_audit] coverage: {len(audit_tickers)}/{len(config.TICKERS)} "
+          f"tickers ({','.join(audit_tickers)})")
     print("[wf_audit] loading flat corpus...")
-    flat = load_flat_corpus(real_mode=real_mode)
+    flat = load_flat_corpus(real_mode=real_mode, tickers=audit_tickers)
     print(f"[wf_audit] {len(flat)} signal rows.")
 
     print("[wf_audit] running walk-forward (cached refits)...")
@@ -956,7 +1050,7 @@ def main(real_mode: bool = False):
           f"{warmup_cutoff.strftime('%Y-%m-%d') if warmup_cutoff else 'N/A'}.")
 
     print("[wf_audit] loading production Kelly logs...")
-    full_kelly = load_kelly_logs(real_mode=real_mode)
+    full_kelly = load_kelly_logs(real_mode=real_mode, tickers=audit_tickers)
 
     print("[wf_audit] computing rolling Sharpe...")
     rolling_df = rolling_sharpe(eval_df)
@@ -982,6 +1076,7 @@ def main(real_mode: bool = False):
         h_in_sample=h_in_sample, h_wf=h_wf, rolling_df=rolling_df,
         prod_sigs_pre=prod_sigs_pre, prod_sigs_post=prod_sigs_post,
         mode_label=mode_label,
+        audit_tickers=audit_tickers, missing_tickers=missing_tickers,
     )
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(md)

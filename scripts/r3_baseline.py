@@ -120,10 +120,17 @@ def _load_price_retry(ticker, period="2y"):
 # Log loaders + metrics (mirrors regime_comparison.py)
 # ---------------------------------------------------------------------------
 
-def _load_logs(tickers, suffix):
+def _load_logs(tickers, suffix, demo=True):
+    """Load per-ticker backtest logs.  Real-mode files live at
+    `backtest_{T}{suffix}.csv` (no `_demo` infix); synthetic-mode files
+    live at `backtest_{T}_demo{suffix}.csv`.  The engine writes the
+    correct flavour based on `demo_mode`; this loader must mirror that
+    branching, otherwise the headline aggregation reports stale demo
+    numbers under `--real`."""
+    infix = "_demo" if demo else ""
     frames = []
     for t in tickers:
-        p = os.path.join(RAW_DIR, f"backtest_{t}_demo{suffix}.csv")
+        p = os.path.join(RAW_DIR, f"backtest_{t}{infix}{suffix}.csv")
         if os.path.exists(p):
             frames.append(pd.read_csv(p, parse_dates=["entry_date", "exit_date"]))
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -265,13 +272,15 @@ def main(tickers, lookback_days=500, demo=True, skip_run=False):
     engine.load_price_history = _load_price_retry
 
     # --- 1. Flat corpus (required) ---
-    flat = _load_logs(tickers, suffix="")
+    flat = _load_logs(tickers, suffix="", demo=demo)
     if flat.empty:
-        print("[r3_baseline] No flat corpus on disk; run "
-              "segregated_kelly_report.py first.")
+        mode_hint = "demo" if demo else "real"
+        print(f"[r3_baseline] No {mode_hint}-mode flat corpus on disk; run "
+              "segregated_kelly_report.py first (or scripts/r3_baseline.py "
+              "without --skip-run to regenerate).")
         return
-    print(f"[r3_baseline] Flat corpus: {len(flat)} rows "
-          f"across {len(tickers)} tickers.")
+    print(f"[r3_baseline] Flat corpus ({'demo' if demo else 'real'}): "
+          f"{len(flat)} rows across {len(tickers)} tickers.")
 
     # --- 2. Rebuild Kelly stats + quintile edges from flat corpus ---
     stats = position_sizer.compute_kelly_stats(flat)
@@ -289,9 +298,10 @@ def main(tickers, lookback_days=500, demo=True, skip_run=False):
             engine.run_backtest(t, demo_mode=demo, lookback_days=lookback_days,
                                 use_kelly_sizing=True, output_suffix="_kelly")
 
-    kelly = _load_logs(tickers, suffix="_kelly")
+    kelly = _load_logs(tickers, suffix="_kelly", demo=demo)
     if kelly.empty:
-        print("[r3_baseline] No Kelly logs produced; aborting.")
+        mode_hint = "demo" if demo else "real"
+        print(f"[r3_baseline] No {mode_hint}-mode Kelly logs produced; aborting.")
         return
 
     # --- 4. Metrics ---

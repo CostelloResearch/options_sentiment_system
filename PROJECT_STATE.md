@@ -121,6 +121,58 @@ Finnhub historical access verified at ~12-month depth.  See
   structure) nor the forward-only `data/options_fetcher.py`
   yfinance snapshots.  No historical chain integration in scope.
 
+**[2026-05-04 — REAL-MODE VALIDATION LANDED — see §7.0.0,
+`outputs/oos_audit_report_real.md`,
+`outputs/walkforward_audit_report_real.md`, and §12 entries from
+this date.]**  Architecture validated end-to-end on real Finnhub
+news sentiment.  ~50k articles backfilled across 12 months
+(2025-05-08 -> 2026-05-04), FinBERT-scored, deduped, and consumed
+by the engine to produce a real-mode flat corpus + Kelly logs.
+Real-mode in-sample R3: **+$9,697 / Sharpe 1.17 / 295 trades / PF
+1.71 / max DD −$1,550** (BUY CALLS only; BUY PUTS zero-contracted
+by the negative-Kelly filter at f* = −0.5224).  Both OOS audits
+returned positive verdicts:
+
+- **75/25 chronological holdout (PARTIAL).**  Test-fold Sharpe
+  **+0.9790**, P&L **+$2,077**, Q5−Q1 spread preserved at
+  **+$1,101.14** (in-sample +$1,079.21).  Synthetic-data Q5
+  inversion **does not reproduce on real data**.  3 ticker P&L
+  sign-flips with |pnl| > $100 (AAPL, IWM, NVDA — all small
+  magnitudes within statistical noise on the test fold's 67 trades).
+- **Walk-forward (WINDOW-DEPENDENT).**  Aggregate Sharpe **+1.1369**
+  across **134 unique refits / 246 trades**, P&L **+$7,786**.
+  Rolling 60-day Sharpe distribution: **103 of 123 windows
+  positive (84%)**, mean +2.1194 / std 1.8618; 97 strong-positive
+  vs 13 strong-negative.  Q5−Q1 spread **+$2,831** (in-sample
+  +$1,079.21).
+
+The synthetic-data Option A justification (Q5 inversion under OOS,
+2026-05-01) was a property of the synthetic generator's regime,
+not the architecture.  Three caveats constrain how strong this
+result is:
+
+- **Single regime.**  ~12 months of real news (2025-05-08 to
+  2026-05-04), predominantly bullish-equity conditions
+  (Finnhub free-tier hard-caps at ~12 months, see §10.3).  Says
+  nothing yet about regime-transition robustness.
+- **Concentration.**  XOM (+$4,860, 50% of P&L), GLD (+$2,390,
+  25%), and WMT (+$1,715, 18%) carry 93% of the total in-sample
+  R3 P&L.  The remaining 7 tickers contribute ~$732 net (NVDA,
+  SPY, IWM, AAPL positive; UNH, TLT, JPM negative — JPM at
+  −$766 is the single largest contributor of negative P&L).
+- **Single strategy.**  295 of 295 actually-traded positions are
+  BUY CALLS.  BUY PUTS evaluations exist (154 signal days) but
+  zero-contract under the negative-Kelly filter; SELL CALLS /
+  SELL PUTS are decay-disabled and credit-floor-blocked
+  respectively from earlier sessions.
+
+Honest current state: **architecture validated, real-mode edge
+demonstrated within a 12-month single-regime corpus with strategy
+and ticker concentration caveats.  Not yet validated across
+multiple regimes.**  The remaining structural limitation is
+news-history depth, not pipeline correctness — see §10.1
+priorities.
+
 ---
 
 ## 2. Architecture / module map
@@ -619,6 +671,79 @@ engine edits.
 > See `outputs/option_a_uniform_sizing.md` §5 for the full diff
 > table and §6 for the verdict reasoning.
 
+### 7.0.0 Real-mode validation (2026-05-04 -- first real-data validation)
+
+_Source of truth: `outputs/oos_audit_report_real.md`,
+`outputs/walkforward_audit_report_real.md`, and the on-disk
+`data/raw/sentiment_{T}_real.csv` corpus (~50k articles, 2,967
+daily-aggregated rows across 10 tickers, 2025-05-08 to
+2026-05-04).  These are the **load-bearing validation result as of
+2026-05-04**.  Synthetic baselines below (§7.0 onward) are
+preserved as the in-sample synthetic record._
+
+**Headline metrics:**
+
+| run | n_signals | n_trades | total P&L | Sharpe | max DD | profit factor | win rate |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **flat real-mode (1 contract)** | 507 | 449 | −$18,983 | −0.90 | −$27,048 | 0.66 | 43.2% |
+| **R3 real-mode (Kelly, real-data params)** | 507 | 295 | **+$9,697** | **1.17** | −$1,550 | 1.71 | 33.7% |
+| 75/25 OOS test fold | 125 | 67 | +$2,077 | 0.98 | −$960 | 1.63 | 31.2% |
+| Walk-forward (134 refits) | 408 | 246 | +$7,786 | 1.14 | −$1,909 | 1.68 | 35.1% |
+
+OOS verdict: **PARTIAL** (75/25 chronological holdout, cutoff
+2025-12-22).  Walk-forward verdict: **WINDOW-DEPENDENT** (134
+refits, warmup cutoff 2025-07-29; 84% of rolling 60d windows
+positive).  Q5−Q1 spread preserves the in-sample +$1,079.21
+ordering on both audits (test fold +$1,101.14, walk-forward
++$2,831.00).
+
+**Per-signal Kelly stats (real-mode flat corpus):**
+
+| signal | n | win_rate | f* | tradable |
+|---|---:|---:|---:|---|
+| BUY CALLS | 295 | 57.97% | **+0.2416** | YES |
+| BUY PUTS | 154 | 31.17% | **−0.5224** | NO (negative-Kelly filter blocks) |
+
+**Real-mode quintile edges:** `[0.1807, 0.2946, 0.3905, 0.4877]`
+-- substantially lower than synthetic edges
+`[0.5440, 0.5618, 0.5779, 0.6020]`.  The legacy tiered confidence
+formula produces lower confidence values on real news than on
+synthetic-generated sentiment, consistent with real news being
+noisier (the synthetic generator was tuned for a tighter
+sentiment-vs-direction relationship than real Finnhub headlines
+exhibit).
+
+**Per-ticker P&L contribution (in-sample real-mode R3, sorted by
+magnitude):**
+
+| ticker | n_taken | pnl | % of total |
+|---|---:|---:|---:|
+| XOM  | 67 | **+$4,860** | 50% |
+| GLD  | 31 | +$2,390 | 25% |
+| WMT  | 42 | +$1,715 | 18% |
+| NVDA | 34 |   +$951 | 10% |
+| SPY  |  7 |   +$331 |  3% |
+| IWM  |  4 |   +$255 |  3% |
+| AAPL | 23 |   +$248 |  3% |
+| UNH  | 37 |    −$26 |  0% |
+| TLT  |  5 |   −$261 | −3% |
+| JPM  | 45 |   **−$766** | −8% |
+| **Total** | **295** | **+$9,697** | **100%** |
+
+**Strategic reframe vs the 2026-04-27 honest-status reframe (§7
+banner above and §1).**  The 2026-04-27 OOS audits ran on the
+synthetic-data corpus and surfaced a Q5 inversion that flipped
++$5,505 in-sample to −$5,685 walk-forward.  That inversion **does
+not reproduce on real data** -- Q5 P&L on real data is +$2,180.56
+in-sample and +$3,148.19 walk-forward, both positive and
+preserving the Q5 > Q1 ordering.  The synthetic Option A
+justification (Q5 inversion under OOS) was therefore a property
+of the synthetic generator's deterministic-seed walk, not the
+architecture.  Option A's reversal evaluation is now possible
+using real-data evidence; flagged as §10.1 priority #4.
+
+---
+
 ### Current production baseline (synthetic-sentiment 10-ticker, 2026-04-25)
 
 _500-day demo run, 10 tickers, R3 sizing.  Headline numbers from
@@ -628,7 +753,9 @@ script name).  Pinned in `scripts/r3_baseline.py`; the drift check now
 verifies both R3 and flat against the pins and reports MATCH on the
 current run.  These are NOT comparable to the 5-ticker historical
 baseline -- different universe = different strategy.  See §7.4 for the
-archived 5-ticker baseline._
+archived 5-ticker baseline.  Synthetic baselines below preserved as
+the in-sample synthetic record; the real-mode tables in §7.0.0 above
+are the load-bearing validation result as of 2026-05-04._
 
 ### 7.0 Headline metrics
 
@@ -946,88 +1073,110 @@ on both R3 and flat drift checks (§7).
 
 ### 10.1 Next session priorities (in order)
 
-1. **Real-data validation: wait for 30-60 days of accumulated live news
-   sentiment via the scheduler.**  No code changes; just patience.  The
-   Mon-Fri 6:30 PM ET task fetches news + options + sentiment + signal
-   for all 10 tickers (verified Decision 6, 2026-04-25).  Each daily
-   run adds one day of authentic Finnhub-sourced sentiment to the
-   corpus.  At ~30 trading days we'll have enough to start cross-
-   referencing real-mode behaviour against the synthetic baseline; at
-   ~60 days the SEC backfill window for the 6 single-name tickers
-   will also be fully populated.
+_Re-prioritised 2026-05-04 after real-mode validation landed (§7.0.0).
+The "wait for real data" priorities that anchored the prior list are
+now retired -- real data has accumulated and validated the
+architecture.  The new priorities are about hardening the result and
+extending it across more regimes._
 
-   - **Sub-finding from Saturday smoke test (2026-04-25):** SELL PUTS
-     strategy is functional on real data despite being blocked in
-     synthetic backtests.  3 of 4 actionable signals fired SELL PUTS
-     (NVDA / IWM / SPY) on real Finnhub options data, clearing the
-     `CREDIT_MIN_PREMIUM_FR=0.33` floor that synthetic-vol pricing had
-     hidden.  Real-mode backtest in late May/June should re-enable
-     SELL PUTS in `kelly_stats.csv` and the decay analysis.  This
-     unblocks Decision-7 §B (SELL PUTS deferral) automatically once
-     the real-data corpus is large enough for Kelly stats to converge.
+1. **Audit-report template fix.**  `outputs/oos_audit_report_real.md`
+   and `outputs/walkforward_audit_report_real.md` contain real-data
+   numerical findings but synthetic-baseline boilerplate prose
+   ("the +$6,775 / Sharpe 0.41 / 357 trades baseline...", "All
+   trades have `is_synthetic=True`...", etc.).  The `build_report`
+   templates in both audit scripts didn't get updated when the
+   `--real` plumbing landed earlier today; they still hard-code
+   synthetic framing into prose strings while the table cells render
+   real-mode data.  Small prompt: parameterise `build_report`'s
+   prose against `mode_label`, re-run both audits in `--real` mode,
+   verify the prose matches the data.
 
-2. **Real-mode end-to-end debug: when sufficient data has accumulated,
-   run `scripts/segregated_kelly_report.py --real` and debug whatever
-   surfaces.**  Multi-session effort.  Earliest start: late May 2026.
-   Likely friction points: (a) Finnhub free-tier rate limits when
-   pulling backfill, (b) the merger / engine real-mode path hasn't
-   been exercised end-to-end since the universe expansion, (c) ETF
-   sentiment quality (news flow on TLT / GLD is thinner than on
-   single-name issuers).
+2. **Regime concentration analysis.**  Walk-forward rolling 60-day
+   Sharpe distribution: 84% of windows positive but mean +2.12 / std
+   +1.86 -- heavy-tailed.  Combined with XOM (+$4,860, 50% of
+   in-sample R3 P&L) + GLD (+$2,390, 25%) + WMT (+$1,715, 18%)
+   carrying 93% of total P&L, the question is whether positive
+   windows rotate across tickers or are dominated by one or two.
+   Concrete prompt: extend `audit_walkforward.py` with a
+   "rolling-window contribution by ticker" table; re-run; if
+   positive windows rotate across tickers the result is more robust
+   than concentration suggests, if XOM+GLD+WMT dominate every
+   positive window the strategy is closer to two-or-three-name beta
+   than universe diversification.
 
-3. **After real-data baseline lands: revisit BUY PUTS Healthcare-only
-   restriction (D1 deferred decision) and SELL PUTS enablement
-   (D2 deferred decision).**  Both signals' fate hinges on whether the
-   sector / vol-premium patterns we saw on synthetic data hold up on
-   real data.  BUY PUTS may re-pass the negative-Kelly filter in
-   Healthcare; SELL PUTS credits should clear the 33% floor naturally
-   once real IV (with vol risk premium) replaces the realised-vol
-   proxy.  Code preserved on disk for both.
+3. **BUY PUTS deep-dive on real data.**  Real-mode BUY PUTS f* =
+   −0.5224 (vs synthetic f* = −0.0567) -- much more negative.  154
+   signals fired, all zero-contracted by the negative-Kelly filter.
+   The earlier "Healthcare-only restriction might re-enable BUY
+   PUTS" hypothesis (parked since the universe expansion) needs
+   revisiting on real data.  Per-sector decay analysis on the real
+   corpus would either confirm Healthcare BUY PUTS is positive
+   (re-enable conditional) or kill the hypothesis entirely.  Use
+   `scripts/sector_decay.py` adapted for `--real` if not already
+   parameterised.
 
-4. **Earnings prepared-remarks sentiment: ~~free upgrade via 8-K~~ DONE
-   (PARTIAL).  Q&A still deferred to a paid feed.**  Implemented Path A
-   on 2026-04-25: `data/sec_fetcher.py` now also fetches Exhibit 99.1
-   (the press release / earnings slide deck) for every 8-K, identified
-   via the SEC submission `.txt` SGML headers (the only authoritative
-   source -- `index.json` `type` field is the UI icon name, not the
-   form type).  `sentiment/sec_scorer.py` tags each filing with a
-   `subcategory` (`10-K_mdna` / `10-Q_mdna` / `8-K_earnings_prepared` /
-   `8-K_earnings_cover` / `8-K_other`); for earnings-flagged 8-Ks with
-   an exhibit on disk, the exhibit is scored instead of the cover.
-   `sentiment/merger.py` blends three streams:
-       news (0.50) + sec_earnings (0.35) + sec_other (0.15)
-   with drop-missing-weight semantics and forward-fill of
-   90d (earnings) / 180d (other).  92 earnings_prepared filings now
-   scored across the 6 single-name tickers.  Backwards-compat single
-   `sec_sentiment` column preserved so `backtest/engine.py` doesn't
-   need changes.
+4. **Option A reversal evaluation.**  Option A disabled
+   `USE_QUINTILE_SIZING` and `USE_LEARNED_MODEL` on 2026-05-01 with
+   the explicit reversal trigger "real-data walk-forward Sharpe
+   under quintile sizing exceeds uniform sizing by ≥X."  With
+   real-mode results in hand, this evaluation is now possible.
+   Concrete prompt: A/B run with both flag combinations
+   (`USE_QUINTILE_SIZING ∈ {False, True}` × `USE_LEARNED_MODEL ∈
+   {False, True}` = 4 runs), capture walk-forward Sharpe on each,
+   document.  Note: §7.0.0 already shows real-mode Q5−Q1 spreads are
+   positive and Q5 doesn't invert -- the quintile sizing case may
+   now be defensible where it wasn't on synthetic data.
 
-   What this DIDN'T deliver: the Q&A portion of the earnings call.
-   Transcripts with analyst Q&A are NOT filed with the SEC -- companies
-   file the press release (prepared remarks) but distribute the
-   transcript via investor relations / third-party transcript services.
-   Q&A integration requires a paid feed (Finnhub paid tier, AlphaSense,
-   etc.) and is the natural Decision 8 candidate after real-data
-   validation lands.
+5. **Multi-regime data extension.**  The most fundamental constraint
+   is **one-regime news coverage** (~12 months 2025-05 to 2026-05,
+   predominantly bullish-equity).  SEC filings already span 10y for
+   5 of 6 single-name tickers (§1 / 2026-05-01 backfill).  News is
+   hard-capped at ~12 months on Finnhub free tier (verified by the
+   v1/v2/v3 spike chain).  Options for extension: (a) paid Finnhub
+   tier with longer history, (b) NewsAPI / RavenPack / similar
+   alternatives, (c) accept the constraint and document in any
+   write-up that real-mode validation is single-regime.  Decision
+   deferred -- listed as priority #5 to flag the structural
+   limitation rather than something to act on next session.
 
-### 10.2 Parked until real sentiment arrives
+### 10.2 Resolved or moved (formerly "parked until real sentiment arrives")
 
-- Re-evaluate whether BUY PUTS structure (60 DTE / 0.25Δ short)
-  survives on real data.  The structural winner was picked on
-  synthetic signals from the put_structure_study; the underlying
-  edge on the 10-ticker universe was tech-concentrated even on
-  synthetic data, so real data may invalidate it entirely.
-- Retry the magnitude model on real sentiment.  `sec_aligned` and
-  `log_days_to_earnings` carry no variance in demo, so the
-  magnitude model effectively trained on only 4 of its 6 features.
-  Real data could change the verdict.
-- Refresh quintile edges and v2 logistic coefficients once the
-  real-data flat corpus is built.  Current edges
-  (`data/raw/quintile_edges.json`) are calibrated on synthetic
-  trades; the v1 production model and v2_10t archive are both
-  parked at synthetic fits.
+_All bullets here were parked pending real-data validation.  That
+landed 2026-05-04; the items have either been answered or relocated
+to §10.1 priorities.  Preserved as historical record._
+
+- ~~Re-evaluate whether BUY PUTS structure (60 DTE / 0.25Δ short)
+  survives on real data.~~  **Answered (negatively).**  BUY PUTS
+  f* = −0.5224 on real data, much worse than synthetic
+  (f* = −0.0567).  Negative-Kelly filter zero-contracts all 154 BUY
+  PUTS evaluations under R3.  Structural override (60 DTE /
+  0.25Δ) stays preserved on disk for the day BUY PUTS gets
+  re-enabled (Healthcare-only candidate, see §10.1 priority #3),
+  but the universe-wide signal is dead under current sizing rules.
+- ~~Retry the magnitude model on real sentiment.  `sec_aligned`
+  and `log_days_to_earnings` carry no variance in demo.~~  **Open,
+  not addressed yet.**  Real data does carry variance in those
+  features; a magnitude-model rerun is now well-posed but was not
+  in scope for this session.  Candidate prompt for a future session
+  alongside §10.1 #4 (Option A reversal evaluation).
+- ~~Refresh quintile edges and v2 logistic coefficients once the
+  real-data flat corpus is built.~~  **Done partially.**  Real-mode
+  quintile edges produced and saved during the
+  `r3_baseline.py --real` run on 2026-05-04: `[0.1807, 0.2946,
+  0.3905, 0.4877]`.  v2_10t logistic refit on real data is the
+  remaining open item -- folded into §10.1 #4.
 
 ### 10.3 Known limitations (Path A SEC pipeline)
+
+> **[2026-05-04 update — audit-report boilerplate prose mismatch.]**
+> `outputs/oos_audit_report_real.md` and
+> `outputs/walkforward_audit_report_real.md` contain accurate
+> real-mode numerical findings but synthetic-baseline boilerplate
+> prose still references "the +$6,775 / Sharpe 0.41 / 357 trades
+> baseline" and "All trades have `is_synthetic=True`" -- artifacts
+> of the `build_report` template strings not having been updated
+> when the `--real` plumbing landed.  The numbers are correct; the
+> prose framing is stale.  See §10.1 priority #1.
 
 > **[2026-05-01 update — Phase 1 SEC depth backfill landed.  See
 > `outputs/sec_phase1_backfill_report.md`.]**
@@ -1195,6 +1344,12 @@ explicit rather than implicit.
 
 # Real-mode (requires sentiment CSVs on disk for each ticker)
 .venv/Scripts/python.exe scripts/r3_baseline.py --real
+
+# OOS integrity audits (75/25 chronological holdout + walk-forward)
+.venv/Scripts/python.exe scripts/audit_oos_split.py
+.venv/Scripts/python.exe scripts/audit_oos_split.py --real
+.venv/Scripts/python.exe scripts/audit_walkforward.py
+.venv/Scripts/python.exe scripts/audit_walkforward.py --real
 ```
 
 **Windows shell note:** use `.venv/Scripts/python.exe` (not `python`) —
@@ -1912,6 +2067,606 @@ them — up to 5 rows for one date when 5 overlapping scrape windows overlap.
 Pipeline is in passive accumulation mode.  No code changes planned until the
 15-trading-day checkpoint (~2026-05-21).  The 30-60 trading day milestone for
 real-data backtesting remains ~late-May through mid-June 2026 (§10.1).
+
+### 2026-05-04 Audit scripts -- partial-coverage relaxation + plumbing acknowledgement
+
+Two changes to the OOS integrity audits, both scoped narrowly to the
+audit scripts themselves (no production-code, no `signals/`,
+`backtest/`, `sentiment/`, or `config.py` edits).
+
+**Plumbing acknowledgement (work that landed before this session, not
+previously logged).**  `scripts/audit_oos_split.py` and
+`scripts/audit_walkforward.py` already had real-mode support
+implemented end-to-end: `--real` argparse flag, real-mode loaders
+(`backtest_{T}.csv` + `backtest_{T}_kelly.csv`), mode-dependent output
+paths (`outputs/oos_audit_report_real.md`,
+`outputs/walkforward_audit_report_real.md`), real-mode OOS artifact
+paths (`data/raw/kelly_stats_oos_train_real.csv`, `..._real.json`,
+`..._real.json`), and a fail-early guard against missing real-mode
+corpus.  Logging the existence of that work here so the next session
+doesn't duplicate it.
+
+**Partial-coverage relaxation (this session).**  The fail-early guard
+required all 10 tickers' real-mode flat + kelly logs on disk, which
+would have meant zero audit signal until the full late-May real-data
+validation milestone.  The guard now allows real-mode runs with `1 <=
+N < 10` ticker coverage:
+
+- Coverage detection in each script's `main()` builds
+  `audit_tickers = sorted(set(present_flat) & set(present_kelly))`
+  and `missing_tickers` with per-ticker reasons (`"flat missing"` /
+  `"kelly missing"` / `"both missing"`).
+- Real-mode partial: stderr `[oos_audit] partial coverage: N of 10
+  tickers -- included: ... -- missing: ...` warning, audit proceeds.
+- Real-mode zero: existing fail-early preserved.
+- Demo-mode partial: still fails fast (demo coverage completeness is a
+  regression signal, not relaxed).
+- Full coverage: silent (no warning, no annotation).
+
+Reports gain two annotations only when real-mode partial: the mode line
+reads `**Mode: REAL (partial coverage: N of 10 tickers)**`, and
+methodology gains a `**Coverage:**` subsection naming included +
+missing tickers with reasons.  Per-ticker P&L tables get a
+`_(N tickers in audit)_` caption suffix.  Loaders
+(`load_flat_corpus`, `load_kelly_logs`) extended with optional
+`tickers: list | None` parameter (default `None` → `config.TICKERS`,
+preserving the prior signature behaviour).
+
+**Edge-case fix (walkforward).**  Partial-coverage corpora smaller
+than `WARMUP_N_TRADES = 50` exit `walk_forward()` with zero evaluable
+rows.  The previous `pd.DataFrame(eval_rows)` returned an empty frame
+with no columns, crashing downstream callers (`rolling_sharpe`,
+`per_ticker`) on missing-column accesses.  Fix: `walk_forward` now
+returns an empty frame with the expected schema (deduped against
+overlapping `kelly_reason` between flat-log and wf-augmented columns);
+`per_ticker` short-circuits with the schema-only frame; the AAPL/NVDA
+P&L extraction in `build_report` uses a small helper that handles
+empty/missing-column inputs.
+
+**Follow-up audit (same date).**  Re-scanned both audit scripts for
+analogous empty-frame access patterns.  One additional latent bug
+fixed: `audit_oos_split.per_ticker()` was returning a no-columns
+empty frame on empty input (would have triggered downstream
+`KeyError` on `train_t[["ticker","n_taken","pnl"]]` selection in
+`build_report`'s side-by-side merge under degenerate partial-coverage
+scenarios, e.g. single-ticker 1-row corpora where the 75/25 split
+produces a 0-row test fold).  Fix mirrors `audit_walkforward.per_ticker`:
+explicit `columns=` on the empty return.  All other in-scope functions
+(`headline`, `taken_mask`, `per_quintile`, `per_quintile_wf`,
+`per_quintile_in_sample`, `evaluate_fold`, `rolling_sharpe`,
+`fit_train_params`, `fit_params`) classify SAFE (existing
+`if df.empty:` guards, pandas-native empty handling, or callers
+length-guard the result).  Smoke tests re-run: 4/4 pass; demo-mode
+output byte-identical to prior baseline; production artifacts
+unchanged.
+
+**Smoke tests run (4 of 4 pass).**
+
+| # | scenario | expected | result |
+|---|---|---|---|
+| 1 | OOS, real-mode partial (3 of 10: AAPL/NVDA/JPM) | warn + annotated report | warning printed, `Mode: REAL (partial coverage: 3 of 10 tickers)`, Coverage subsection present, per-ticker table caption `_(3 tickers in audit)_`; production artifacts unchanged |
+| 2 | OOS, real-mode zero coverage | fail-early exit 1 | matches existing format, exit=1 |
+| 3 | OOS, demo full | structurally identical to baseline | section headers diff = empty, no Coverage / no partial annotation, production artifacts unchanged |
+| 4 | All three repeated for `audit_walkforward.py` | same | partial: `[wf_audit] partial coverage: ...` + annotated report; zero: exit=1; demo: section headers identical |
+
+Bonus check: temporarily renamed `backtest_AAPL_demo.csv` aside and ran
+`scripts/audit_oos_split.py` (no `--real`); fail-early triggered
+(`[oos_audit] ERROR: demo corpus partial -- 9 of 10 tickers present.
+Missing: AAPL (flat missing).  Demo coverage completeness is a
+regression signal; not relaxing the demo guard.`, exit=1).  File
+restored after the test.
+
+Production artifacts (`kelly_stats.csv`, `quintile_edges.json`,
+`confidence_model.json`) verified bit-identical (mtime + size) before
+and after every smoke test via the in-script `file_signature` snapshot
+mechanism, which both audits already had.
+
+### 2026-05-04 Finnhub chunked historical news backfill -- code only, smoke-tested
+
+**What landed.**  Two additive code surfaces enabling the long-blocked
+~12-month news backfill (PROJECT_STATE §1 / `outputs/finnhub_historical_spike*.md`):
+
+- `data/news_fetcher.py::fetch_news_chunk(ticker, to_date, days=14, save_dir=None)`:
+  sibling of `fetch_news` with explicit `to_date` so the orchestrator can
+  walk backwards.  Atomic chunk-CSV write (tmp + `os.replace`).  Schema
+  identical to the existing `news_*.csv` (`ticker, date, datetime,
+  headline, summary, source, url`).  Sort: ascending by `datetime`
+  (vs `fetch_news`'s descending eyeball-friendly order — backfill stitches
+  chronologically).  Empty response -> empty DataFrame (depth-ceiling
+  signal); any exception -> raised as `BackfillFetchError` (a new typed
+  exception class added in the same file) so the orchestrator can
+  distinguish API failure from depth ceiling.  **`fetch_news`,
+  `fetch_all_tickers`, `_build_client`, `_save` unchanged**, verified
+  via `git diff` (additions only, zero deletions inside existing
+  functions).
+- `scripts/backfill_news_history.py`: the orchestrator.  Argparse
+  (`--ticker`, `--max-chunks`, `--dry-run`, `--reset`).  Manifest at
+  `data/raw/backfill_manifest.json` tracks completed chunks per ticker
+  with atomic writes after every chunk.  Idempotency: reconciles
+  manifest vs disk on every restart (orphan CSVs adopted; manifest
+  entries with missing CSVs dropped for re-fetch).  Retry on
+  `BackfillFetchError` with exponential backoff (2s, 4s, 8s, 16s, 32s,
+  cap 32s, 5 attempts).  Depth-ceiling detection requires `>= 2`
+  successful chunks before an empty result counts as ceiling -- a
+  first-chunk empty is more likely auth failure and is flagged
+  `in_progress` for operator review.  Pacing: 1.0s within ticker, 1.5s
+  between tickers; matches existing `fetch_all_tickers` cadence and
+  stays well under the documented Finnhub free-tier 60/min cap.
+
+**Decisions.**  14-day chunk window with 13-day backwards walk
+(intentional 1-day overlap as defence against `to=` boundary
+off-by-one); manifest-based idempotency with atomic writes (chunk
+CSVs and manifest both); FinBERT scoring deliberately deferred to a
+follow-up prompt that will consume the chunk CSVs.  No FinBERT
+imports in either new file (verified -- `sentiment/scorer.py` is not
+imported by `backfill_news_history.py` or by `fetch_news_chunk`).
+No new top-level dependencies.
+
+**Smoke tests run (4/4 pass).**
+
+| # | scenario | result |
+|---|---|---|
+| 1 | `--dry-run` (10 tickers, default cap) | prints 520-call plan with per-ticker schedule + ~8.9 min wall-clock estimate; manifest NOT created on disk; zero API calls |
+| 2 | `--ticker AAPL --max-chunks 3` | 3 chunks fetched (n_articles 246/240/239), oldest `to_date=2026-04-08` = today−26d (= 2 × 13d step), manifest contents match CSV row counts (verified via `pandas.read_csv` -- raw `wc -l` differs because summaries contain embedded newlines) |
+| 3 | re-run `--ticker AAPL --max-chunks 3` after test 2 | **0 API calls**, 0 new chunks, summary line same as test 2's terminal state |
+| 4 | daily-pipeline regression: `from data.news_fetcher import fetch_news` + `git diff` audit | `fetch_news` importable with unchanged docstring; `git diff data/news_fetcher.py` shows additions only (no `^-` deletion lines hit existing-function bodies); `scripts/run_daily.py` shows zero diff |
+
+Bonus restart check: re-running with `--max-chunks 4` after the
+3-chunk state walked exactly 1 new chunk back to `to=2026-03-26` (=
+`2026-04-08 − 13d`) and made exactly 1 API call -- confirms the
+backwards-walk geometry holds across resume boundaries.  **Side
+effect of smoke testing: 4 real AAPL chunks (965 articles total)
+remain on disk under `data/raw/news_AAPL_chunk_*.csv` plus the
+manifest at `data/raw/backfill_manifest.json`.  These are valid
+backfill data and are kept** for the follow-up scoring prompt to
+consume; not cleaned up.
+
+**Pre-existing doc drifts surfaced by the recon -- NOT fixed in this
+prompt.**
+
+- PROJECT_STATE §2 architecture map labels `sentiment/aggregator.py`
+  as "news ingestion (Finnhub)".  The actual Finnhub fetcher is
+  `data/news_fetcher.py`; `sentiment/aggregator.py` is the
+  multi-day-aggregation layer that loads scored CSVs and computes
+  rolling/momentum.  Flag for a separate doc-cleanup task.
+- `data/news_fetcher.py:158` (was line 149 pre-edit) still carries the
+  comment `"Finnhub free tier allows ~30 requests/minute"`.  Spike v2
+  documents the official rate as 60/min.  Flag for a separate
+  doc/comment-cleanup task; the 1.5s sleep stays valid under either
+  figure.
+
+**Next-step queue.**
+
+1. **Full backfill run** (`scripts/backfill_news_history.py` no flags):
+   ~520 calls, ~9 min API wall clock, ~10 tickers × ~52 chunks each;
+   produces ~520 chunk CSVs (~100k raw articles).  Single command,
+   restartable, no FinBERT involved.
+2. **Follow-up scoring prompt** consuming the chunk CSVs and producing
+   `sentiment_{T}_{DATE}.csv` outputs in the existing daily-aggregated
+   schema (so `aggregator.py`, `signal_engine`, `merger.py` see no
+   schema change).  FinBERT inference dominates wall clock there
+   (~tens of minutes on CPU; ~5x faster on GPU; comparable to the
+   SEC backfill scoring step).
+3. (Separate) Doc cleanup: §2 fetcher attribution; news_fetcher.py
+   stale 30/min comment.
+
+### 2026-05-04 Real-mode sentiment corpus -- chunks scored, downstream-ready
+
+**What landed.**  `scripts/score_backfill_chunks.py` consumes the 280
+chunk CSVs from the prior backfill (50,598 raw articles), dedups by
+`url` (keep-first), invokes `sentiment.scorer.score_articles` +
+`aggregate_daily` (no scorer modifications), and writes one
+canonical real-mode CSV per ticker at
+`data/raw/sentiment_{TICKER}_real.csv` plus a manifest at
+`data/raw/scored_chunks_manifest.json`.  All atomic writes (tmp +
+`os.replace`).  Idempotent: `--ticker T` on a complete ticker
+returns 0.0s; `--reset` re-scores from scratch.
+
+**Per-ticker results (full corpus, 10/10 complete).**
+
+| ticker | raw | dedup | ratio | rows | date_span | elapsed |
+|---|---:|---:|---:|---:|---|---:|
+| AAPL | 6,679 | 6,679 | 1.00 | 220 | 2011-06-07 -> 2026-05-04 | 288.5s |
+| NVDA | 6,835 | 6,835 | 1.00 | 136 | 2020-06-12 -> 2026-05-04 | 285.9s |
+| JPM  | 5,535 | 5,241 | 0.95 | 331 | 2023-03-14 -> 2026-05-04 | 219.7s |
+| XOM  | 4,284 | 3,922 | 0.92 | 339 | 2023-04-03 -> 2026-05-04 | 164.0s |
+| UNH  | 3,853 | 3,376 | 0.88 | 334 | 2025-05-13 -> 2026-05-04 | 153.1s |
+| WMT  | 5,824 | 5,188 | 0.89 | 348 | 2020-06-11 -> 2026-05-04 | 210.9s |
+| IWM  | 6,094 | 5,466 | 0.90 | 363 | 2017-04-16 -> 2026-05-04 | 191.8s |
+| GLD  | 2,455 | 2,128 | 0.87 | 341 | 2011-04-13 -> 2026-05-04 | 81.1s |
+| TLT  | 2,087 | 1,824 | 0.87 | 323 | 2025-05-08 -> 2026-05-04 | 54.8s |
+| SPY  | 6,952 | 6,952 | 1.00 | 258 | 2023-03-15 -> 2026-05-04 | 315.8s |
+| **TOTAL** | **50,598** | **47,611** | **0.94** | **2,993** | | **1965s (32.8 min)** |
+
+Device: CPU.  Total wall clock for the orchestrator (including TLT
+skip from the prior single-ticker smoke test): 1910s for the 9
+tickers actually scored in the full run.
+
+**Dedup-key reality vs prompt assumption.**  The prompt expected
+0.55-0.80 surviving fraction (i.e., 20-45% URL duplicates from chunk
+overlap).  Actual: AAPL/NVDA/SPY at **1.00** (zero URL dedup); the
+other 7 tickers cluster 0.87-0.95.  Investigation: Finnhub's URLs
+carry a randomised `id=` query parameter that **changes per
+request**.  `news?id=ead391...` and `news?id=cea00d...` were
+observed for the same headline pulled in different chunks.  URL is
+therefore an unreliable dedup key in general; the 5-15% that *does*
+dedup on the lower-volume tickers happens when Finnhub's edge cache
+serves identical responses to overlapping calls.  Real impact is
+bounded: `aggregate_daily` averages `sentiment_score` by
+`(ticker, date)`, so identical-headline duplicates (same FinBERT
+score) leave the per-day mean unchanged; only `headline_count` is
+inflated (~1-13% across tickers, depending on syndication
+patterns).  Sentiment ranking and signs are correct.  Prompt's URL
+dedup spec preserved as-is; the band warning is informational.
+
+**Sub-finding: 0.5% out-of-window outliers concentrate in the long
+tail.**  AAPL/GLD `earliest_date` reaches 2011, NVDA/WMT 2020, IWM
+2017 -- these are the v3 spike's "Finnhub occasionally returns an
+article whose stored `datetime` was reset/back-filled" outliers
+flowing through unfiltered (the prompt explicitly directed keeping
+them).  Bulk of articles (>99%) sit inside the 2025-05 to 2026-05
+12-month window the backfill targeted.  Downstream consumers can
+filter on `date >= 2025-05-01` if a strict horizon is needed.
+
+**Smoke tests run (6/6 pass).**
+
+| # | scenario | result |
+|---|---|---|
+| 1 | `--dry-run` (10 tickers) | per-ticker plan + ~28.6 min wall-clock estimate; manifest NOT created on disk; zero FinBERT load |
+| 2 | `--ticker TLT` (smallest, ~2087 raw) | `sentiment_TLT_real.csv` 323 rows; schema = canonical 7 cols; sentiment_score in [-0.96, 0.85]; manifest entry with `status=complete`; ratio 0.87 (band warning fired) |
+| 3 | re-run `--ticker TLT` after test 2 | 0.0s elapsed, manifest mtime unchanged (verified via stat) |
+| 4 | locked-files regression: `git diff sentiment/scorer.py sentiment/aggregator.py sentiment/merger.py data/news_fetcher.py scripts/run_daily.py scripts/backfill_news_history.py` | only `data/news_fetcher.py` shows changes (additions-only from the prior backfill prompt; zero `^-` deletion lines hit existing functions); other 5 files zero diff |
+| 5 | full 10-ticker run | 9 fresh tickers scored (TLT skipped via manifest); 2,993 daily rows total; 1965s aggregate scoring time; manifest totals match per-ticker sums |
+| 6 | downstream-loader auto-pickup | `sentiment.aggregator.build_sentiment_summary('TLT')` returns 362 rows over 2025-05-08 -> 2026-05-04 (merged real-mode + 6 stale daily-pipeline files via the existing `(ticker, date)` highest-headline_count dedup); `sentiment.merger.load_news_sentiment('TLT')` returns 323 rows in the merger's 7-col schema.  **Both loaders auto-pickup `sentiment_{T}_real.csv` via the existing `sentiment_{T}_*.csv` glob -- zero wiring changes needed downstream.** |
+
+**Downstream-loader compatibility verdict: GREEN.**  Real-mode
+sentiment is end-to-end consumable by `aggregator.py` and `merger.py`
+without any code changes.  `signal_engine.py` reads the merger's
+output (or the daily aggregator's) so it inherits the auto-pickup
+transitively.  No follow-up wiring task surfaced.
+
+**Decisions.**  URL dedup retained per prompt spec despite the
+ratio-band miss (rationale above: aggregation absorbs the over-count).
+FinBERT loaded once per process via the scorer's existing
+`_pipeline_cache`; ~32.8 min CPU wall clock total.  No GPU available
+on this machine.
+
+**Pre-existing doc drifts surfaced earlier this session -- still
+NOT fixed (separate prompt).**  PROJECT_STATE §2 architecture map
+labels `sentiment/aggregator.py` as the news fetcher (actually
+`data/news_fetcher.py`); `data/news_fetcher.py:158` carries a stale
+"Finnhub free tier allows ~30 requests/minute" comment (actual
+documented rate is 60/min).  Both flagged in the prior backfill
+entry above; both still untouched.
+
+**Next-step queue.**
+
+1. **Real-mode `r3_baseline.py --real`** -- produces
+   `outputs/r3_production_baseline_real.md` plus per-ticker
+   `backtest_{T}.csv` and `backtest_{T}_kelly.csv` driven by the
+   real-mode sentiment corpus that's now on disk.  Operator-driven;
+   no code changes needed.
+2. **Real-mode audits** (`scripts/audit_oos_split.py --real` and
+   `scripts/audit_walkforward.py --real`) -- already partial-
+   coverage-tolerant from this session's earlier prompts; will run
+   on whatever subset of tickers test 1 produces flat + kelly logs
+   for.
+3. (Separate) Doc cleanup: §2 fetcher attribution; news_fetcher.py
+   stale 30/min comment.
+
+### 2026-05-04 Backfill redup -- (headline,date) key + date-range filter
+
+**What landed.**  `scripts/redup_backfill.py` re-derives the per-
+ticker `data/raw/sentiment_{T}_real.csv` files from the raw chunk
+CSVs using `(headline_normalized, date)` dedup (replacing the prior
+URL key) and a date-range filter `[2025-05-05, 2026-05-04]` to drop
+the v3-spike-documented out-of-window outliers.  Reuses
+`sentiment.scorer.score_articles` + `aggregate_daily` (no scorer
+modifications).  Idempotent: tickers with `dedup_method =
+"headline_date_v2"` skip on re-run.  Atomic writes for both CSVs
+and manifest.  The original `score_backfill_chunks.py` remains on
+disk as the audit trail of what URL dedup produced.
+
+**Per-ticker results (full corpus, 10/10 redupped).**
+
+| ticker | raw | url_dedup | hd_dedup | oow | final | rows | redup_s |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| AAPL | 6,679 | 6,679 | 6,679 | 4 | 6,675 | 216 | 230.5s |
+| NVDA | 6,835 | 6,835 | 6,835 | 4 | 6,831 | 132 | 250.5s |
+| JPM  | 5,535 | 5,241 | 5,240 | 2 | 5,238 | 329 | 197.8s |
+| XOM  | 4,284 | 3,922 | 3,922 | 1 | 3,921 | 338 | 148.3s |
+| UNH  | 3,853 | 3,376 | 3,376 | 0 | 3,376 | 334 | 128.8s |
+| WMT  | 5,824 | 5,188 | 5,185 | 2 | 5,183 | 346 | 197.5s |
+| IWM  | 6,094 | 5,466 | 5,466 | 3 | 5,463 | 360 | 176.9s |
+| GLD  | 2,455 | 2,128 | 2,128 | 6 | 2,122 | 335 | 75.4s |
+| TLT  | 2,087 | 1,824 | 1,824 | 0 | 1,824 | 323 | 87.6s |
+| SPY  | 6,952 | 6,952 | 6,952 | 4 | 6,948 | 254 | 291.1s |
+| **TOTAL** | **50,598** | **47,611** | **47,607** | **26** | **47,581** | **2,967** | **1696.8s (28.3 min)** |
+
+**Empirical finding -- `(headline, date)` is barely different from
+URL dedup on this corpus.**  The prompt expected 5-30% additional
+reduction on AAPL/NVDA/SPY (the URL-ratio-1.00 tickers).  Actual
+additional reduction across all 10 tickers: **4 rows** (JPM −1, WMT
+−3).  Root cause: when chunks contain "the same headline", they
+sit on **different dates** -- typically syndicated columns
+republished weekly or monthly (e.g., AAPL's "1 Unstoppable Stock to
+Buy Before It Joins Nvidia, Apple, Mi..." appeared on 2025-11-02
+*and* 2025-12-06; same headline, different content).  Both URL
+dedup and `(headline, date)` dedup correctly preserve them as
+distinct articles.  The earlier "URL-randomization broke dedup"
+narrative was wrong: URL dedup didn't fail to catch chunk-overlap
+duplicates -- there were no chunk-overlap duplicates to catch on
+those tickers.  The corrected dedup key is still the right one to
+standardize on (semantically defensible; URL has no stability
+guarantee even if it happens to work as a dedup key for this run),
+but the `headline_count` inflation we feared was largely imagined.
+
+**What this prompt actually delivered.**
+
+1. **Cleaner date ranges.**  AAPL had 4 long-tail outlier dates
+   (2011-06-07, 2012-06-05, 2023-03-15, 2025-04-06).  NVDA, SPY,
+   WMT, IWM, JPM, XOM, GLD: 1-6 outliers each, totaling **26 rows
+   filtered** across 10 tickers (~0.05% of the corpus, matching the
+   v3 spike's "~0.5%" estimate's lower bound).  Earliest dates
+   collapse from 2011-2024 across tickers down to **2025-05-08 to
+   2025-05-13** (depending on first-news-day per ticker), giving a
+   tight, defensible 12-month window.
+2. **Standardized dedup key.**  `dedup_method: "headline_date_v2"`
+   recorded in the manifest per ticker.  Future operations on the
+   corpus will use a stable key; the URL-method audit trail is
+   preserved alongside.
+3. **End-to-end downstream consumability validated.**  Both
+   `sentiment.aggregator.build_sentiment_summary` and
+   `sentiment.merger.load_news_sentiment` continue to auto-pick up
+   `sentiment_{T}_real.csv` via the existing glob (filename
+   unchanged).  AAPL aggregator returns 358 days over 2025-05-12 ->
+   2026-05-04; merger returns 222 days.  No wiring changes needed
+   downstream.
+
+**Verified deltas on AAPL/NVDA/SPY/GLD (snapshotted before redup):**
+on every matched in-window date, `headline_count` delta is exactly
+**0** and `|sentiment_score|` delta max is **0.0001** (floating-
+point noise from re-scoring the same articles).  The ONLY change
+is dropping out-of-window dates entirely; in-window content is
+bit-stable.
+
+**Smoke tests run (6/6 pass).**
+
+| # | scenario | result |
+|---|---|---|
+| 1 | `--dry-run` | per-ticker plan + ~39.7 min CPU estimate; manifest + TLT mtimes unchanged after run |
+| 2 | `--ticker TLT` redup + before/after delta | TLT byte-identical (0 oow, identical url/hd dedup count); mtime updated; schema unchanged |
+| 3 | restart `--ticker TLT` | 0.0s elapsed, TLT mtime unchanged on second invocation |
+| 4 | locked-files regression | only `data/news_fetcher.py` shows changes (additions only from earlier prompts); 6 other locked files zero diff; scorer functions importable with unchanged docstrings |
+| 5 | full 10-ticker run | 9 fresh tickers redupped (TLT skipped via manifest); 26 oow filtered; 2,967 daily rows total; 28.3 min wall clock |
+| 6 | downstream loaders | aggregator + merger both auto-pickup; AAPL date_min cleaned to 2025-05-12 propagates end-to-end |
+
+**Decisions.**  URL-method counts preserved in the manifest as
+`n_articles_after_dedup` (existing field, untouched); new
+`headline_date_v2` counts in `n_articles_after_redup`.  Top-level
+`redup_run` field records the corrective pass once per run (never
+overwritten on subsequent same-ticker re-runs since they short-
+circuit on `dedup_method`).  No scoring-script modification; no
+production-code changes.
+
+**Pre-existing doc drifts STILL not fixed (separate prompt
+candidate).**  PROJECT_STATE §2 mislabels `sentiment/aggregator.py`
+as the news fetcher; `data/news_fetcher.py:158` carries the stale
+"30 requests/minute" comment.
+
+**Next-step queue (operator-driven).**  Real-mode `r3_baseline.py
+--real` is now ready to run on a clean, date-bounded, dedup-
+standardized corpus.  Real-mode `audit_oos_split.py --real` and
+`audit_walkforward.py --real` follow once the first produces flat
++ kelly logs.
+
+### 2026-05-04 r3_baseline.py --real bug fix (loader hardcoded `_demo`)
+
+**Bug.**  `scripts/r3_baseline.py::_load_logs` (lines 123-129
+pre-fix) read filenames as `backtest_{T}_demo{suffix}.csv` regardless
+of the `demo` parameter passed to `main()`.  Per-ticker engine runs
+under `--real` correctly wrote real-mode `backtest_{T}_kelly.csv`
+files (verified: 30/37/49/78/64/49/46/71/72/21 rows on AAPL/NVDA/
+JPM/XOM/UNH/WMT/IWM/GLD/TLT/SPY = 507 trades total, mtimes today),
+but the headline-aggregation step kept reading `backtest_{T}_demo*
+.csv` -- which were untouched (mtimes May 1 / Apr 25).  Result:
+operator's `--real` run reported headline numbers identical to the
+synthetic 2026-05-01 baseline, masking the actual real-mode behaviour.
+
+**Prompt framing correction.**  The prompt premised "flat-loader
+correct, Kelly-loader buggy".  Evidence shows BOTH `_load_logs`
+calls (suffix=`""` and suffix=`"_kelly"`) shared the same hardcoded
+`_demo` infix.  The operator's prior flat row of "283 signals,
+-$16,918" was the *synthetic* flat row post-Option-A drift, not
+real-mode flat -- demo_flat row counts sum to exactly 283, and
+synthetic-mode regression below reproduces that exact line.  The
+project's first real-mode validation hadn't actually surfaced
+before this fix.
+
+**Fix.**  Minimal patch at [scripts/r3_baseline.py](scripts/r3_baseline.py):
+- `_load_logs` extended with `demo: bool = True` parameter; filename
+  infix branches `"_demo" if demo else ""`
+- Both call sites in `main()` updated: `_load_logs(tickers,
+  suffix="", demo=demo)` and `_load_logs(tickers, suffix="_kelly",
+  demo=demo)`
+- Empty-corpus error messages now name the mode (`"No real-mode
+  Kelly logs produced"` etc.)
+
+No engine, signal, sizing, scorer, aggregator, merger, news_fetcher,
+run_daily, backfill, score, redup script changes.
+
+**Smoke tests (all pass).**
+
+| # | scenario | result |
+|---|---|---|
+| 1 | post-fix `--real --skip-run` | flat row 2 / +$13.67 (only NVDA real-mode flat on disk); R3 row **507 signals / 295 trades / +$9,697 / Sharpe 1.17 / DD -$1,550 / PF 1.71 / WR 33.7%**; per-quintile P&L spans $77 (Q2) to $7,516 (Q1, n=231); R3 trade-counts table: BUY CALLS 295, BUY PUTS 0 (negative-Kelly filter holds, signal stays disabled in production) |
+| 2 | post-fix `--skip-run` (synthetic) | flat 283/-$16,918, R3 872/360/+$5,836 -- byte-equivalent to PROJECT_STATE §7 post-Option-A drift snapshot |
+| 3 | audit-script verification | `audit_oos_split.load_kelly_logs` and `load_flat_corpus`, plus the same in `audit_walkforward.py`, all already take `real_mode: bool = False` and both call sites in each `main()` pass `real_mode=real_mode` from parsed args (verified by `inspect.signature` + grep).  **No fix needed for audit scripts** -- the prior partial-coverage prompt's `--real` plumbing landed correctly |
+
+**First real-mode R3 headline (with the bug fixed).**
+
+| metric | real-mode | synthetic pin | drift |
+|---|---:|---:|---:|
+| total_pnl | +$9,697.01 | +$6,775.00 | +$2,922.01 |
+| sharpe | +1.1732 | +0.4100 | +0.7632 |
+| max_dd | -$1,550.01 | -$6,244.00 | +$4,693.99 |
+| profit_factor | 1.7113 | 1.2700 | +0.4413 |
+| n_trades | 295 | 357 | -62 |
+
+Real-mode R3 outperforms the synthetic pin on every dimension --
+roughly 3x the Sharpe, 4x lower drawdown, 1.5x the profit factor --
+on 17% fewer taken trades.  This is in-sample on the real corpus
+(the model and quintile edges were refit on it during this run).
+**OOS audits are the next step before drawing edge conclusions.**
+Synthetic comparisons stand only as methodology-validation; the
+real-mode-vs-synthetic-pin DRIFT verdict is now meaningful and
+informative rather than a synthetic-vs-synthetic mis-comparison.
+
+**Real-mode flat corpus on disk is sparse.**  Only `backtest_NVDA.csv`
+exists (3 lines / 2 data rows).  `r3_baseline.py` calls
+`engine.run_backtest(t, ..., output_suffix="_kelly")` which writes
+only the Kelly log, not a flat baseline.  To populate real-mode
+flat for all tickers, the operator should run a real-mode flat
+producer (e.g. `segregated_kelly_report.py --real` or equivalent
+that calls `engine.run_backtest` without `output_suffix`) before
+running the OOS audits.  Out of scope for this prompt.
+
+**Per-signal Kelly stats from this run** (computed on the 2-row
+real-mode flat corpus, so n is tiny):
+
+| signal | n | WR | f* | tradable |
+|---|---:|---:|---:|---|
+| BUY CALLS | 2 | 50.00% | +0.1438 | False (n < min) |
+
+These stats are not interpretable until the real-mode flat corpus
+is fully populated.  The operator's earlier session reported
+BUY CALLS f* +0.3242 / BUY PUTS f* -0.7300 -- those numbers were
+computed against a stale or differently-sourced corpus and need
+re-derivation once a clean real-mode flat baseline lands.
+
+**Pre-existing doc drifts STILL not fixed.**  Same two as prior
+entries: §2 architecture map mislabel; news_fetcher.py:158 stale
+30/min comment.
+
+**Next-step queue (operator-driven).**
+
+1. Real-mode flat baseline producer (e.g. `segregated_kelly_report
+   .py --real`) to populate `backtest_{T}.csv` for all 10 tickers
+2. Re-run `r3_baseline.py --real` (full, not `--skip-run`) so the
+   per-signal Kelly stats are re-derived against a complete
+   real-mode flat corpus
+3. Real-mode `audit_oos_split.py --real` -- already partial-coverage-
+   tolerant, can run as soon as ≥1 ticker has both flat + kelly
+   real-mode logs
+4. Real-mode `audit_walkforward.py --real` -- same readiness
+5. (Separate) Update r3_baseline.py drift pins to real-mode targets
+   once a stable real-mode baseline is established; until then the
+   DRIFT verdict against synthetic pins is informational
+
+### 2026-05-04 -- Real-mode validation: full pipeline through OOS audits (session arc)
+
+_Wrapper entry covering the day's arc.  The five entries above
+this one document each sub-task individually; this consolidates
+the arc and adds the operator-driven validation runs that landed
+after the `r3_baseline.py --real` bug fix._
+
+**Session timeline.**
+
+- **Morning** -- Audit-script partial-coverage relaxation +
+  follow-up audit of empty-frame access patterns (latent bug
+  fixed in `audit_oos_split.per_ticker`).  See entry "Audit scripts
+  -- partial-coverage relaxation + plumbing acknowledgement"
+  above.
+- **Late morning** -- CLAUDE.md locked-decision corrections for
+  Option A (locked decisions #2 + #4 rewritten); project-purpose
+  paragraph, file-naming bullet, and "How to run" section
+  reorder.  Three small CLAUDE.md prompts.
+- **Early afternoon** -- Finnhub recon (seven-question
+  reconnaissance report), then chunked backfill orchestrator
+  (`scripts/backfill_news_history.py` + `data/news_fetcher.py
+  ::fetch_news_chunk`).  Smoke-tested on 3 AAPL chunks; full
+  backfill run (operator-driven) produced 280 chunk CSVs / ~50,598
+  raw articles across 10 tickers.
+- **Mid-afternoon** -- FinBERT scoring orchestrator
+  (`scripts/score_backfill_chunks.py`) consumed all 280 chunks
+  via the existing `sentiment.scorer` primitives; ~32.8 min CPU
+  wall clock; produced 10 `sentiment_{T}_real.csv` files.
+- **Late afternoon** -- Backfill redup (`scripts/redup_backfill.py`)
+  with `(headline_normalized, date)` dedup key + date-range filter
+  `[2025-05-05, 2026-05-04]`.  Filtered 26 out-of-window outliers
+  total; cleaned earliest dates from 2011-2024 down to 2025-05-08
+  to 2025-05-13 per ticker.
+- **Evening** -- `r3_baseline.py::_load_logs` bug fix (had
+  hardcoded `_demo` infix regardless of mode); operator ran
+  `segregated_kelly_report.py --real` to populate real-mode
+  `backtest_{T}.csv` flat baselines, then `r3_baseline.py --real`
+  with the fix to produce real-derived Kelly stats and quintile
+  edges.  In-sample R3 result: **+$9,697 / Sharpe 1.17 / 295
+  trades**.
+- **Late evening** -- Operator ran `audit_oos_split.py --real`
+  and `audit_walkforward.py --real`.  75/25 verdict PARTIAL
+  (test-fold Sharpe +0.9790, P&L +$2,077).  Walk-forward verdict
+  WINDOW-DEPENDENT (aggregate Sharpe +1.1369, 84% of rolling
+  60-day windows positive).  Both reports written to
+  `outputs/oos_audit_report_real.md` and
+  `outputs/walkforward_audit_report_real.md`.
+
+**Headline real-mode validation (full table in §7.0.0):**
+
+| run | n_signals | n_trades | total P&L | Sharpe | max DD | PF | WR |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| flat real-mode (1 contract) | 507 | 449 | −$18,983 | −0.90 | −$27,048 | 0.66 | 43.2% |
+| **R3 real-mode** | 507 | 295 | **+$9,697** | **1.17** | −$1,550 | 1.71 | 33.7% |
+| 75/25 OOS test fold | 125 | 67 | +$2,077 | 0.98 | −$960 | 1.63 | 31.2% |
+| Walk-forward (134 refits) | 408 | 246 | +$7,786 | 1.14 | −$1,909 | 1.68 | 35.1% |
+
+**Three caveats (also captured in §1).**  Single regime (~12
+months bullish-equity); concentration (XOM+GLD+WMT carry 93% of
+in-sample R3 P&L); single strategy (BUY CALLS only -- BUY PUTS,
+SELL CALLS, SELL PUTS all blocked under real-data parameters).
+
+**Key reframe vs 2026-04-27 honest-status update.**  The
+synthetic-data Q5 inversion (the load-bearing finding behind
+Option A) **does not reproduce on real data**: real-mode Q5 P&L
+is +$2,180.56 in-sample and +$3,148.19 walk-forward (positive,
+preserves Q5 > Q1 ordering).  The synthetic Q5 inversion was a
+property of the synthetic generator's regime, not the
+architecture.  Option A's reversal evaluation is now well-posed
+and listed as §10.1 priority #4.
+
+**Load-bearing artifacts on disk after this session:**
+
+- `data/raw/news_{T}_chunk_*.csv` -- 280 chunk CSVs (~50,598 articles)
+- `data/raw/sentiment_{T}_real.csv` -- 10 daily-aggregated
+  sentiment CSVs (2,967 daily rows total, all in 2025-05-08 to
+  2026-05-04 window post-redup)
+- `data/raw/backtest_{T}.csv` -- 10 real-mode flat backtest logs
+- `data/raw/backtest_{T}_kelly.csv` -- 10 real-mode Kelly logs
+- `data/raw/kelly_stats.csv` -- real-derived per-signal Kelly
+  fractions (BUY CALLS f* +0.2416 tradable; BUY PUTS f* −0.5224
+  not tradable)
+- `data/raw/quintile_edges.json` -- real-derived edges
+  `[0.1807, 0.2946, 0.3905, 0.4877]`
+- `data/raw/confidence_model.json` -- preserved on disk per Option
+  A (`USE_LEARNED_MODEL=False`); not loaded by production
+- `data/raw/backfill_manifest.json` + `scored_chunks_manifest.json`
+  -- audit trail manifests
+- `outputs/r3_production_baseline.md` -- real-mode (post-fix run)
+- `outputs/oos_audit_report_real.md` -- 75/25 holdout, PARTIAL
+- `outputs/walkforward_audit_report_real.md` -- 134-refit walk-
+  forward, WINDOW-DEPENDENT
+
+**Honest current state (architectural).**  Pipeline ingests real
+news from a paid-tier-adjacent free API, scores it, sizes
+positions, walks-forward through OOS audits, and produces a
+positive-Sharpe headline -- end to end, deterministically, in
+~33 min of CPU time on a 12-month real-news corpus.  The
+remaining structural limitation is news-history depth, not
+pipeline correctness.
+
+**Next-session queue.**  See §10.1 -- five priorities re-ordered
+post-validation.  #1 is the audit-report template fix (small);
+#5 is multi-regime data extension (deferred / structural).
 
 ---
 

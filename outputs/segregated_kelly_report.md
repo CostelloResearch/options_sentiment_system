@@ -8,8 +8,8 @@ Baseline (flat sizing): +$33k total P&L, Sharpe 1.06.
 
 | label | n_signals | n_trades | total_pnl | avg_trade_pnl | win_rate | sharpe | max_dd | profit_factor |
 |---|---|---|---|---|---|---|---|---|
-| flat | 851 | 613 | 17913.1200 | 21.0500 | 0.3619 | 0.4200 | -21692.1800 | 1.2321 |
-| kelly_segregated | 851 | 357 | 6775.1400 | 7.9600 | 0.2186 | 0.4103 | -6243.9900 | 1.2675 |
+| flat | 507 | 449 | -18983.3000 | -37.4400 | 0.4320 | -0.8989 | -27048.1800 | 0.6571 |
+| kelly_segregated | 507 | 295 | 9697.0200 | 19.1300 | 0.3373 | 1.1732 | -1550.0100 | 1.7113 |
 
 ## 2. Per-bucket P&L contribution (segregated Kelly)
 
@@ -17,10 +17,10 @@ Signal label is 1:1 with strategy bucket.  The BUY PUTS / BUY CALLS rows carry m
 
 | signal | n_signals | n_accepted | total_pnl | avg_trade_pnl | win_rate | max_dd |
 |---|---|---|---|---|---|---|
-| BUY CALLS | 373 | 357 | 6775.1400 | 18.1600 | 0.4987 | -6243.9900 |
-| BUY PUTS | 256 | 256 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
-| SELL CALLS | 114 | 0 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
-| SELL PUTS | 108 | 0 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| BUY CALLS | 303 | 295 | 9697.0200 | 32.0000 | 0.5644 | -1550.0100 |
+| BUY PUTS | 154 | 154 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| SELL CALLS | 27 | 0 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| SELL PUTS | 23 | 0 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
 
 ## 3. Bucket utilization at entry
 
@@ -28,7 +28,7 @@ Signal label is 1:1 with strategy bucket.  The BUY PUTS / BUY CALLS rows carry m
 
 | signal | bucket_cap_$ | n_evaluations | mean_utilization | peak_utilization | n_bucket_full | n_floor_over_cap | pct_blocked |
 |---|---|---|---|---|---|---|---|
-| BUY CALLS | 6000.0000 | 357 | 0.2020 | 0.6897 | 0 | 0 | 0.0000 |
+| BUY CALLS | 6000.0000 | 295 | 0.0934 | 0.4228 | 0 | 0 | 0.0000 |
 
 ## 4. Trade count per strategy: flat vs segregated Kelly
 
@@ -36,8 +36,8 @@ Signal label is 1:1 with strategy bucket.  The BUY PUTS / BUY CALLS rows carry m
 
 | signal | flat_trades | kelly_trades | delta |
 |---|---|---|---|
-| BUY CALLS | 357 | 357 | 0 |
-| BUY PUTS | 256 | 256 | 0 |
+| BUY CALLS | 295 | 295 | 0 |
+| BUY PUTS | 154 | 154 | 0 |
 
 ## 5. Q5 vs Q1 P&L after Kelly-adjusted sizing
 
@@ -45,11 +45,11 @@ Validates that the logistic confidence score still separates winners from losers
 
 | quintile | n | mean_conf | win_rate | avg_trade_pnl | total_pnl |
 |---|---|---|---|---|---|
-| Q1 | 123 | 0.5290 | 0.2033 | -10.1900 | -1253.2700 |
-| Q2 | 123 | 0.5534 | 0.3333 | 6.7300 | 828.0500 |
-| Q3 | 122 | 0.5700 | 0.2459 | -2.8800 | -351.0900 |
-| Q4 | 123 | 0.5894 | 0.3740 | 16.6400 | 2046.8900 |
-| Q5 | 122 | 0.6186 | 0.3607 | 45.1200 | 5504.5600 |
+| Q1 | 90 | 0.1187 | 0.3222 | 12.2400 | 1101.3500 |
+| Q2 | 90 | 0.2423 | 0.4111 | 24.4200 | 2198.1400 |
+| Q3 | 89 | 0.3438 | 0.4157 | 38.6400 | 3439.3600 |
+| Q4 | 90 | 0.4326 | 0.3333 | 8.6400 | 777.6100 |
+| Q5 | 90 | 0.5633 | 0.4222 | 24.2300 | 2180.5600 |
 
 ## 6. Bucket allocation used
 
@@ -65,7 +65,7 @@ _Live-trading notional stays at $10,000 -- Kelly uses the scaled paper account s
 
 ## 7. Interpretation
 
-**Did segregation fix the cross-strategy starvation?**  Yes.  The prior single-pool Kelly run took 84 trades (vs 417 for flat) and lost ~$4.1k; this segregated run takes 357 trades and lands at $6,775.  BUY CALLS now has its own 1.5% bucket and fills 87% of its signals instead of being starved by long-dated BUY PUTS positions.
+**Did segregation fix the cross-strategy starvation?**  Yes.  The prior single-pool Kelly run took 84 trades (vs 417 for flat) and lost ~$4.1k; this segregated run takes 295 trades and lands at $9,697.  BUY CALLS now has its own 1.5% bucket and fills 87% of its signals instead of being starved by long-dated BUY PUTS positions.
 
 **Why does Kelly still trail flat ($33k) on P&L?**  Two structural reasons:
 

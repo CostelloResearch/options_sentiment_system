@@ -8,9 +8,9 @@ _Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe +0.41 in-sample 
 
 ## 2. Walk-forward design specifics
 
-- **Refit cadence.**  Logically daily.  Implementation refits only when the training-corpus size grows (a new accepted trade has exited).  Identical training data produces identical parameters; redundant refits are skipped.  Result: **195 unique refits** across the corpus, vs the 700+ daily refits a naive walk-forward would do.
+- **Refit cadence.**  Logically daily.  Implementation refits only when the training-corpus size grows (a new accepted trade has exited).  Identical training data produces identical parameters; redundant refits are skipped.  Result: **43 unique refits** across the corpus, vs the 700+ daily refits a naive walk-forward would do.
 - **Training corpus filter.**  `accepted == True` AND `exit_date < entry_date_of_signal_being_evaluated`.  This is the strict no-look-ahead semantic: a trade is only used in fitting after its P&L is realised.  The prompt's phrasing `entry_date < T` is the loose form of the same intent.
-- **Warmup threshold.**  50 accepted-and-completed trades required before any signal is evaluable.  First date this threshold is met: **2025-01-06**.  153 signals fall in the warmup period and are excluded from evaluation (counted, not zeroed).
+- **Warmup threshold.**  50 accepted-and-completed trades required before any signal is evaluable.  First date this threshold is met: **2025-07-02**.  123 signals fall in the warmup period and are excluded from evaluation (counted, not zeroed).
 - **Synchronization.**  Universe-wide refits using all 10 tickers' completed accepted trades.  Per-ticker refits would be a different test and were not implemented.
 - **Parameter persistence.**  All parameter snapshots held in memory; nothing written under `data/raw/`.
 - **Sharpe convention.**  `mean(pnl_total) / std(pnl_total, ddof=1) * sqrt(252/5)`, matching `r3_baseline.headline()`.  Same convention used for the trade-level rolling-window Sharpe.
@@ -20,31 +20,31 @@ _Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe +0.41 in-sample 
 
 | metric | value |
 |---|---|
-| n_signals_seen | 698.0000 |
-| n_warmup_excluded | 153.0000 |
-| n_signals_evaluable | 698.0000 |
-| n_trades_taken | 400.0000 |
-| total_pnl_$ | -1,203.8200 |
-| sharpe | -0.0617 |
-| max_dd_$ | -10,704.6300 |
-| profit_factor | 0.9671 |
-| win_rate | 0.2693 |
+| n_signals_seen | 160.0000 |
+| n_warmup_excluded | 123.0000 |
+| n_signals_evaluable | 160.0000 |
+| n_trades_taken | 114.0000 |
+| total_pnl_$ | -5,343.2600 |
+| sharpe | -1.2400 |
+| max_dd_$ | -7,571.7800 |
+| profit_factor | 0.5875 |
+| win_rate | 0.3063 |
 
 ## 4. Three-column comparison: in-sample / 75-25-OOS / walk-forward
 
 | metric | in_sample_full | oos_75_25 | walk_forward |
 |---|---|---|---|
-| n_signals | 872.0000 | 213.0000 | 698.0000 |
-| n_trades_taken | 360.0000 | 113.0000 | 400.0000 |
-| total_pnl_$ | 5,836.1300 | -2,877.5700 | -1,203.8200 |
-| sharpe | 0.4973 | -0.5977 | -0.0617 |
-| max_dd_$ | -6,567.8800 | -7,731.0500 | -10,704.6300 |
-| profit_factor | 1.3113 | 0.7295 | 0.9671 |
-| win_rate | 0.2248 | 0.2629 | 0.2693 |
-| Q5_total_pnl | -1,415.9100 | -5,585.8400 | -4,671.1400 |
-| Q1_total_pnl | 6,875.5000 | -324.3100 | 1,155.8400 |
-| AAPL_pnl | -1,989.0100 | -4,534.7100 | -2,260.8500 |
-| NVDA_pnl | -2,366.3800 | -471.3200 | -1,339.9900 |
+| n_signals | 872.0000 | 213.0000 | 160.0000 |
+| n_trades_taken | 360.0000 | 113.0000 | 114.0000 |
+| total_pnl_$ | 5,836.1300 | -2,877.5700 | -5,343.2600 |
+| sharpe | 0.4973 | -0.5977 | -1.2400 |
+| max_dd_$ | -4,939.1600 | -7,731.0500 | -7,571.7800 |
+| profit_factor | 1.3113 | 0.7295 | 0.5875 |
+| win_rate | 0.2248 | 0.2629 | 0.3063 |
+| Q5_total_pnl | -1,415.9100 | -5,585.8400 | -2,364.5300 |
+| Q1_total_pnl | 6,875.5000 | -324.3100 | -2,100.0500 |
+| AAPL_pnl | -1,989.0100 | -4,534.7100 | 559.3800 |
+| NVDA_pnl | -2,366.3800 | -471.3200 | -88.5400 |
 
 _75/25 OOS column reproduced from `outputs/oos_audit_report.md` (cutoff 2025-11-17); walk-forward column computed in this session.  Both share the in-sample comparison baseline._
 
@@ -52,51 +52,51 @@ _75/25 OOS column reproduced from `outputs/oos_audit_report.md` (cutoff 2025-11-
 
 | stat | value |
 |---|---|
-| n_windows | 201.0000 |
-| mean | -1.0687 |
-| std | 1.8227 |
-| p10 | -2.7639 |
-| p25 | -1.8810 |
-| p50_median | -1.0688 |
-| p75 | 0.0968 |
-| p90 | 0.8096 |
-| min | -7.3958 |
-| max | 2.6792 |
-| n_positive | 64.0000 |
-| n_negative | 137.0000 |
-| n_|sharpe|>0.5 | 139.0000 |
-| n_sharpe>+0.5 | 29.0000 |
-| n_sharpe<-0.5 | 110.0000 |
+| n_windows | 67.0000 |
+| mean | 0.0232 |
+| std | 8.6056 |
+| p10 | -7.7881 |
+| p25 | -3.7698 |
+| p50_median | -2.3912 |
+| p75 | 2.2492 |
+| p90 | 8.8365 |
+| min | -11.6545 |
+| max | 29.5656 |
+| n_positive | 22.0000 |
+| n_negative | 45.0000 |
+| n_|sharpe|>0.5 | 64.0000 |
+| n_sharpe>+0.5 | 20.0000 |
+| n_sharpe<-0.5 | 44.0000 |
 
-**Pos vs neg windows:** 64 positive / 137 negative (32% positive).  **Strong-magnitude windows** (|Sharpe| > 0.5): 139 (29 positive, 110 negative).
+**Pos vs neg windows:** 22 positive / 45 negative (33% positive).  **Strong-magnitude windows** (|Sharpe| > 0.5): 64 (20 positive, 44 negative).
 
 ## 6. Per-refit parameter evolution
 
-Sampled 7 of 195 refit events spread evenly through the walk-forward period.  Shows how parameters evolve as the training corpus grows.
+Sampled 7 of 43 refit events spread evenly through the walk-forward period.  Shows how parameters evolve as the training corpus grows.
 
 **Quintile edges + Kelly fractions:**
 
 | date | n_train | edge_q1 | edge_q2 | edge_q3 | edge_q4 | BC_kelly_f | BP_kelly_f |
 |---|---|---|---|---|---|---|---|
-| 2025-01-06 | 51 | 0.4713 | 0.5757 | 0.6703 | 0.7407 | 0.4199 | 0.0105 |
-| 2025-06-26 | 118 | 0.4831 | 0.5434 | 0.5813 | 0.6411 | 0.1773 | 0.0830 |
-| 2025-08-21 | 192 | 0.5304 | 0.5868 | 0.6418 | 0.7216 | 0.3290 | 0.1588 |
-| 2025-10-20 | 318 | 0.5032 | 0.5153 | 0.5278 | 0.5412 | 0.2707 | -0.2591 |
-| 2025-12-16 | 421 | 0.4473 | 0.4844 | 0.5150 | 0.5487 | 0.1290 | -0.1638 |
-| 2026-02-24 | 499 | 0.4393 | 0.4712 | 0.4990 | 0.5300 | 0.0645 | -0.1554 |
-| 2026-04-23 | 580 | 0.4700 | 0.4948 | 0.5196 | 0.5491 | 0.0641 | -0.0220 |
+| 2025-07-02 | 51 | 0.5210 | 0.6332 | 0.6985 | 0.7606 | 0.5676 | 0.0912 |
+| 2025-08-07 | 61 | 0.4688 | 0.5624 | 0.6341 | 0.6974 | 0.3475 | 0.0912 |
+| 2025-09-19 | 102 | 0.3222 | 0.4321 | 0.5024 | 0.5956 | 0.3647 | -0.4762 |
+| 2025-10-22 | 120 | 0.3315 | 0.4255 | 0.4818 | 0.5375 | 0.3631 | -0.5885 |
+| 2026-01-22 | 146 | 0.3855 | 0.4341 | 0.4720 | 0.5191 | 0.2896 | -0.6190 |
+| 2026-03-24 | 153 | 0.3888 | 0.4361 | 0.4670 | 0.5104 | 0.2898 | -0.6234 |
+| 2026-04-30 | 176 | 0.3705 | 0.4407 | 0.4916 | 0.5517 | 0.3681 | -0.7110 |
 
 **Confidence model coefficients (intercept + 6 betas):**
 
 | date | n_train | intercept | abs_sentiment | iv_rank | sent_momentum_3d | sec_aligned | log_headline_count | log_days_to_earnings |
 |---|---|---|---|---|---|---|---|---|
-| 2025-01-06 | 51 | +0.4918 | -0.2302 | -0.5717 | +0.1146 | +0.0000 | +0.4085 | +0.0000 |
-| 2025-06-26 | 118 | +0.2862 | -0.0062 | -0.3277 | -0.2259 | +0.0000 | +0.0365 | +0.0000 |
-| 2025-08-21 | 192 | +0.5114 | +0.0939 | -0.3808 | -0.2159 | +0.0000 | +0.1116 | +0.0000 |
-| 2025-10-20 | 318 | +0.0883 | +0.0329 | -0.0664 | +0.0141 | +0.0000 | +0.0381 | -0.0000 |
-| 2025-12-16 | 421 | -0.0047 | +0.0411 | -0.1924 | +0.0777 | +0.0000 | -0.0342 | -0.0000 |
-| 2026-02-24 | 499 | -0.0606 | +0.0494 | -0.1647 | +0.0369 | +0.0000 | -0.0878 | +0.0000 |
-| 2026-04-23 | 580 | +0.0349 | -0.0033 | -0.1281 | +0.0195 | +0.0000 | -0.1234 | +0.0000 |
+| 2025-07-02 | 51 | +0.6530 | -0.0245 | +0.3513 | +0.0311 | +0.0000 | -0.5511 | +0.0000 |
+| 2025-08-07 | 61 | +0.3992 | +0.3398 | -0.1354 | -0.2620 | +0.0000 | -0.4121 | -0.0000 |
+| 2025-09-19 | 102 | -0.1732 | +0.2927 | +0.5278 | -0.1468 | +0.0000 | -0.1683 | +0.0000 |
+| 2025-10-22 | 120 | -0.2115 | +0.2370 | +0.3836 | +0.0787 | +0.0000 | -0.2028 | -0.0000 |
+| 2026-01-22 | 146 | -0.1967 | +0.1537 | +0.1613 | +0.1218 | +0.0000 | -0.2009 | -0.0000 |
+| 2026-03-24 | 153 | -0.2004 | +0.1317 | +0.1455 | +0.0545 | +0.0000 | -0.1878 | -0.0000 |
+| 2026-04-30 | 176 | -0.1427 | +0.1842 | +0.2280 | +0.1810 | +0.0000 | -0.2561 | -0.0000 |
 
 ## 7. Per-quintile breakdown
 
@@ -116,43 +116,46 @@ Confidence quintile labels are assigned at trade-entry time using the parameters
 
 | quintile | n | win_rate | total_pnl | avg_pnl |
 |---|---|---|---|---|
-| Q1 | 77 | 0.47 | 1,155.84 | 15.01 |
-| Q2 | 69 | 0.42 | -1,469.32 | -21.29 |
-| Q3 | 71 | 0.62 | 5,168.38 | 72.79 |
-| Q4 | 82 | 0.48 | -1,387.58 | -16.92 |
-| Q5 | 101 | 0.40 | -4,671.14 | -46.25 |
+| Q1 | 32 | 0.50 | -2,100.05 | -65.63 |
+| Q2 | 28 | 0.46 | -117.35 | -4.19 |
+| Q3 | 15 | 0.53 | 934.47 | 62.30 |
+| Q4 | 17 | 0.24 | -1,695.80 | -99.75 |
+| Q5 | 22 | 0.36 | -2,364.53 | -107.48 |
 
-**Q5 - Q1 spread:** in-sample -$8,291.41, 75/25 OOS -$5,261.53, walk-forward -$5,826.98.
+**Q5 - Q1 spread:** in-sample -$8,291.41, 75/25 OOS -$5,261.53, walk-forward -$264.48.
 
 ## 8. Per-ticker breakdown
 
 | ticker | n_taken_in | pnl_in | n_taken_wf | pnl_wf |
 |---|---|---|---|---|
-| AAPL | 42 | -1,989.01 | 41 | -2,260.85 |
-| GLD | 1 | -28.18 | 10 | -1,079.11 |
-| IWM | 43 | 2,426.84 | 65 | -4,940.54 |
-| JPM | 16 | -425.33 | 34 | -4,171.52 |
-| NVDA | 90 | -2,366.38 | 82 | -1,339.99 |
-| SPY | 60 | 4,315.58 | 56 | 1,090.90 |
-| TLT | 29 | 2,524.44 | 30 | 113.92 |
-| UNH | 6 | 147.83 | 17 | 10,245.32 |
-| WMT | 47 | 3.33 | 45 | 265.56 |
-| XOM | 26 | 1,227.01 | 20 | 872.49 |
+| AAPL | 42 | -1,989.01 | 5 | 559.38 |
+| GLD | 1 | -28.18 | 6 | -503.83 |
+| IWM | 43 | 2,426.84 | 41 | -8,121.22 |
+| JPM | 16 | -425.33 | 8 | 866.48 |
+| NVDA | 90 | -2,366.38 | 4 | -88.54 |
+| SPY | 60 | 4,315.58 | 3 | 25.83 |
+| TLT | 29 | 2,524.44 | 26 | 1,158.36 |
+| UNH | 6 | 147.83 | 3 | -181.18 |
+| WMT | 47 | 3.33 | 0 | 0.00 |
+| XOM | 26 | 1,227.01 | 18 | 941.46 |
 
 **Sign-flipping tickers (|pnl| > $100 on both sides):**
 
-- **IWM**: in-sample $2,426.84 -> walk-forward -$4,940.54.
+- **AAPL**: in-sample -$1,989.01 -> walk-forward $559.38.
+- **IWM**: in-sample $2,426.84 -> walk-forward -$8,121.22.
+- **JPM**: in-sample -$425.33 -> walk-forward $866.48.
+- **UNH**: in-sample $147.83 -> walk-forward -$181.18.
 
-**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  Walk-forward: -$2,260.85 on 41 taken trades.  The Dec-2025 / Jan-2026 stop cluster from `outputs/aapl_stop_diagnosis.md` falls after the warmup cutoff (2025-01-06) so it is in the walk-forward evaluable window.
+**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  Walk-forward: $559.38 on 5 taken trades.  The Dec-2025 / Jan-2026 stop cluster from `outputs/aapl_stop_diagnosis.md` falls after the warmup cutoff (2025-07-02) so it is in the walk-forward evaluable window.
 
 ## 9. Verdict
 
-**DEGRADES CONSISTENTLY.**  Walk-forward total Sharpe (-0.0617) is statistically indistinguishable from zero -- the entire +0.4973 in-sample edge does not reproduce.  The rolling 60-day distribution has mean -1.0687 (std 1.8227) with substantial dispersion (29 windows above +0.5 vs 110 below -0.5, 32% positive overall) -- the strategy is not uniformly bad in every refit window, but on average and on aggregate P&L it does not produce edge.  Q5-Q1 spread -$5,826.98 inverts the in-sample ordering of -$8,291.41: even after averaging over 195 refit windows, the model's 'highest confidence' bucket still systematically loses money.  1 ticker P&L sign-flips on > $100 magnitude.  The 75/25 finding reproduces under finer-grained refits: R3's +$6,775 / +0.41 Sharpe baseline is largely in-sample inflation.  v2_10t promotion on the current evidence is premature; the production R3 sizing decision was made on numbers that do not survive any honest holdout test.
+**DEGRADES CONSISTENTLY.**  Walk-forward total Sharpe (-1.2400) is statistically indistinguishable from zero -- the entire +0.4973 in-sample edge does not reproduce.  The rolling 60-day distribution has mean +0.0232 (std 8.6056) with substantial dispersion (20 windows above +0.5 vs 44 below -0.5, 33% positive overall) -- the strategy is not uniformly bad in every refit window, but on average and on aggregate P&L it does not produce edge.  Q5-Q1 spread -$264.48 inverts the in-sample ordering of -$8,291.41: even after averaging over 195 refit windows, the model's 'highest confidence' bucket still systematically loses money.  4 ticker P&L sign-flips on > $100 magnitude.  The 75/25 finding reproduces under finer-grained refits: R3's +$6,775 / +0.41 Sharpe baseline is largely in-sample inflation.  v2_10t promotion on the current evidence is premature; the production R3 sizing decision was made on numbers that do not survive any honest holdout test.
 
 ## 10. Caveats
 
 - **Synthetic-sentiment caveat (still load-bearing).**  All trades have `is_synthetic=True`.  Walk-forward on the deterministic synthetic generator is a single realisation, not a Monte Carlo over RNG draws.  Real-mode walk-forward on accumulated live news will differ structurally.
-- **Evaluable date range.**  2025-01-06 -> 2026-04-24 (153 signals before the warmup cutoff are not evaluated).
+- **Evaluable date range.**  2025-07-02 -> 2026-05-01 (123 signals before the warmup cutoff are not evaluated).
 - **Rolling-window error bars.**  60-day windows on this trade-frequency contain ~10-30 trades; individual window Sharpes are noisy and should not be over-interpreted.  The distributional summary is the right unit of analysis.
 - **Single-realisation caveat.**  Synthetic sentiment seed is deterministic per ticker (`seed = sum(ord(c) for c in ticker)`).  Rerunning would produce identical results; a Monte Carlo over different seeds would require a code change in `backtest/engine._generate_synthetic_history` (out of scope).
 

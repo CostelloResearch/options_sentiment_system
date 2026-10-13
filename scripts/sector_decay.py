@@ -52,14 +52,17 @@ OUT_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "output
 RAW_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "raw"))
 
 
-def _load_flat_logs_for(tickers):
+def _load_flat_logs_for(tickers, real_mode: bool = False):
     """Concatenate flat-sizing backtest logs for `tickers` only.  Skips Kelly/R*
     suffixed variants so we don't multi-count the same signals."""
     frames = []
     for t in tickers:
-        p = os.path.join(RAW_DIR, f"backtest_{t}_demo.csv")
+        fname = f"backtest_{t}.csv" if real_mode else f"backtest_{t}_demo.csv"
+        p = os.path.join(RAW_DIR, fname)
         if os.path.exists(p):
             frames.append(pd.read_csv(p, parse_dates=["entry_date", "exit_date"]))
+        else:
+            print(f"[sector_decay] WARNING: missing flat log {fname}", file=sys.stderr)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
@@ -126,12 +129,12 @@ def _sector_signal_crosstab(enriched, horizons=(5, 10, 20)):
     return pd.DataFrame(rows).sort_values(["signal", "sector"]).reset_index(drop=True)
 
 
-def main(tickers, horizons=(1, 3, 5, 10, 20)):
+def main(tickers, horizons=(1, 3, 5, 10, 20), real_mode: bool = False):
     os.makedirs(OUT_DIR, exist_ok=True)
 
     print(f"[sector_decay] tickers: {tickers}")
 
-    trades = _load_flat_logs_for(tickers)
+    trades = _load_flat_logs_for(tickers, real_mode=real_mode)
     if trades.empty:
         print("[sector_decay] No flat logs on disk; run "
               "segregated_kelly_report.py first.")
@@ -191,7 +194,8 @@ def main(tickers, horizons=(1, 3, 5, 10, 20)):
     print(cross.to_string(index=False))
 
     # ---- Markdown ----
-    md_path = os.path.join(OUT_DIR, "sector_decay_analysis.md")
+    md_name = "sector_decay_analysis_real.md" if real_mode else "sector_decay_analysis.md"
+    md_path = os.path.join(OUT_DIR, md_name)
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("# Signal Decay -- Per-Sector Segmentation\n\n")
         f.write(f"_2026-04-25 universe rebuild: 10 tickers across "
@@ -257,5 +261,6 @@ def main(tickers, horizons=(1, 3, 5, 10, 20)):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--tickers", nargs="+", default=config.TICKERS)
+    ap.add_argument("--real", action="store_true")
     args = ap.parse_args()
-    main(args.tickers)
+    main(args.tickers, real_mode=args.real)

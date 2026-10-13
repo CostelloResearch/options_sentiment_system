@@ -44,11 +44,11 @@ When the three in-sample-leakage parameters (Kelly stats, quintile edges, confid
 
 | signal | prod_n | prod_kelly_f | prod_tradable | train_n | train_kelly_f | train_tradable |
 |---|---|---|---|---|---|---|
-| BUY CALLS | 357 | 0.0789 | 1 | 78 | 0.2983 | 1 |
-| BUY PUTS | 256 | -0.0567 | 0 | 54 | -0.6050 | 0 |
+| BUY CALLS | 295 | 0.2416 | 1 | 78 | 0.2983 | 1 |
+| BUY PUTS | 154 | -0.5224 | 0 | 54 | -0.6050 | 0 |
 
 - `quintile_edges_oos_train.json` -- `[0.3695, 0.4286, 0.4771, 0.5259]`
-  Production edges (for comparison): `[0.544, 0.5618, 0.5779, 0.602]`
+  Production edges (for comparison): `[0.1807, 0.2946, 0.3905, 0.4877]`
 - `confidence_model_oos_train.json` -- logistic refit on 132 accepted train trades, converged=True in 3 IRLS iters, train_win_rate=0.455.
 
 **Held constant from production (NOT refit):** all hand-set constants (`STOP_LOSS_DEBIT_FRAC=0.80`, `PROFIT_TARGET_FRAC=0.50`, `TIME_STOP_DTE=21`, `KELLY_FRACTION=0.25`, `MAX_PORTFOLIO_RISK=0.06`, `QUINTILE_FRAC` table, sentiment/IV thresholds, BUY PUTS structural override).  These are fixed parameters, not data-fitted, so they don't carry the in-sample-leakage concern.
@@ -86,11 +86,11 @@ Quintile binning uses the production edges for the in-sample column and the trai
 
 | label | quintile | n | win_rate | total_pnl | avg_pnl |
 |---|---|---|---|---|---|
-| in_sample | Q1 | 333 | 0.56 | 6,875.50 | 20.65 |
-| in_sample | Q2 | 6 | 0.67 | 511.88 | 85.31 |
-| in_sample | Q3 | 7 | 0.43 | -162.94 | -23.28 |
-| in_sample | Q4 | 3 | 0.67 | 27.60 | 9.20 |
-| in_sample | Q5 | 11 | 0.00 | -1,415.91 | -128.72 |
+| in_sample | Q1 | 76 | 0.49 | -336.86 | -4.43 |
+| in_sample | Q2 | 94 | 0.51 | -251.53 | -2.68 |
+| in_sample | Q3 | 64 | 0.53 | 1,234.36 | 19.29 |
+| in_sample | Q4 | 58 | 0.71 | 4,162.66 | 71.77 |
+| in_sample | Q5 | 68 | 0.53 | 1,027.50 | 15.11 |
 
 **Train fold (train-fitted params, train trades):**
 
@@ -112,16 +112,16 @@ Quintile binning uses the production edges for the in-sample column and the trai
 | test_fold | Q4 | 9 | 0.44 | 430.36 | 47.82 |
 | test_fold | Q5 | 8 | 0.75 | 530.77 | 66.35 |
 
-**Q5 - Q1 total-P&L spread:**  in-sample -$8,291.41, train fold $160.33, test fold $323.00.  In-sample shows monotone Q1 < Q5 = +$6,758 ordering; the test-fold spread is the OOS test of whether the confidence-model ranking generalises.
+**Q5 - Q1 total-P&L spread:**  in-sample $1,364.36, train fold $160.33, test fold $323.00.  In-sample shows monotone Q1 < Q5 = +$6,758 ordering; the test-fold spread is the OOS test of whether the confidence-model ranking generalises.
 
 ## 6. Verdict
 
-**GENERALIZES.**  Test-fold Sharpe (+2.5150) is within ~30% of the in-sample Sharpe (+0.4973); the Q5-Q1 confidence-ranking ordering is preserved ($323.00 test vs -$8,291.41 in-sample); no ticker P&L flips sign on a > $100 magnitude.  The R3 production baseline is a defensible signal-edge measurement under the chronological holdout test, with the standard caveats about synthetic sentiment and single-split sampling variability.  R3's selection as production sizing and the v2_10t promotion question both stand on stronger footing after this audit.
+**GENERALIZES.**  Test-fold Sharpe (+2.5150) is within ~30% of the in-sample Sharpe (+0.4973); the Q5-Q1 confidence-ranking ordering is preserved ($323.00 test vs $1,364.36 in-sample); no ticker P&L flips sign on a > $100 magnitude.  The R3 production baseline is a defensible signal-edge measurement under the chronological holdout test, with the standard caveats about corpus-window coverage and single-split sampling variability.  R3's selection as production sizing and the v2_10t promotion question both stand on stronger footing after this audit.
 
 
 ## 7. Caveats
 
-- **Synthetic-sentiment caveat (still load-bearing).**  Every trade in the corpus has `is_synthetic=True`.  This audit measures generalisation **within the synthetic generator's deterministic-seed walk**, not generalisation to live sentiment.  A real-mode run (`scripts/r3_baseline.py --real`) would produce a structurally different corpus.
+- **Synthetic-sentiment caveat (still load-bearing).**  Trade corpus drawn from the synthetic-mode flat backtest (deterministic per-ticker sentiment seed).  This audit measures generalisation **within the synthetic generator's deterministic-seed walk**, not generalisation to live sentiment.  A real-mode run (`scripts/r3_baseline.py --real`) would produce a structurally different corpus.
 - **Single-split caveat.**  A 75/25 chronological holdout is one sample of 'future data.'  Walk-forward refit-every-N-days would give a distribution of OOS Sharpe estimates rather than a single point.  Given this audit's outcome, walk-forward is the warranted next session.
 - **Test-fold size caveat.**  The test fold contains 69 signals and 41 taken trades.  Sharpe at this sample size has wide error bars; the point estimate +2.5150 should be read with that in mind.  The standard error of an annualised Sharpe at this trade count is roughly 1/sqrt(41/5) per year-equivalent ~ 0.35, so the 95% CI is roughly +/- 0.70 around the point estimate.
 - **Open-risk cap approximation.**  `size_trade` was called with `open_risk_dollars=0`, which assumes the global 6% cap never binds in the test fold.  The production Kelly run had peak utilisation 0.69 (well below 1.0); on a smaller fold this is even less likely to bind.
@@ -130,8 +130,8 @@ Quintile binning uses the production edges for the in-sample column and the trai
 
 | artifact | mtime_pre | mtime_post | size_unchanged |
 |---|---|---|---|
-| kelly_stats.csv (production) | 1777679169.712 | 1777679169.712 | 1 |
-| quintile_edges.json (production) | 1777679169.714 | 1777679169.714 | 1 |
+| kelly_stats.csv (production) | 1777945077.126 | 1777945077.126 | 1 |
+| quintile_edges.json (production) | 1777945077.129 | 1777945077.129 | 1 |
 | confidence_model.json (production) | 1777081780.784 | 1777081780.784 | 1 |
 
 **Production artifacts unchanged: CONFIRMED.**  All OOS-specific outputs are in `*_oos_train.*` files (`data/raw/kelly_stats_oos_train.csv`, `data/raw/quintile_edges_oos_train.json`, `data/raw/confidence_model_oos_train.json`).

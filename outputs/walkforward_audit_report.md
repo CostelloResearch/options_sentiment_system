@@ -4,7 +4,7 @@
 
 ## 1. Question and methodology summary
 
-_Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe +0.41 in-sample -> -0.60 OOS, Q5 confidence-bucket inversion) is universal across refit windows or specific to the single 2025-11-17 cutoff date.  Kelly stats, quintile edges, and the confidence model are refit each time a new accepted trade completes; every signal is sized with parameters that knew nothing about its outcome.  Path-(b) post-hoc re-derivation: the flat corpus's per-share `pnl` and `max_loss` are spread + real-price properties unchanged by sizing -- only contract counts shift between sizing regimes.  No production code, sizing logic, or on-disk artifact is modified._
+_Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe +0.41 in-sample -> -0.60 OOS, Q5 confidence-bucket inversion) is universal across refit windows or specific to that single cutoff date.  Kelly stats, quintile edges, and the confidence model are refit each time a new accepted trade completes; every signal is sized with parameters that knew nothing about its outcome.  Path-(b) post-hoc re-derivation: the flat corpus's per-share `pnl` and `max_loss` are spread + real-price properties unchanged by sizing -- only contract counts shift between sizing regimes.  No production code, sizing logic, or on-disk artifact is modified._
 
 ## 2. Walk-forward design specifics
 
@@ -41,8 +41,8 @@ _Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe +0.41 in-sample 
 | max_dd_$ | -4,939.1600 | -7,731.0500 | -7,571.7800 |
 | profit_factor | 1.3113 | 0.7295 | 0.5875 |
 | win_rate | 0.2248 | 0.2629 | 0.3063 |
-| Q5_total_pnl | -1,415.9100 | -5,585.8400 | -2,364.5300 |
-| Q1_total_pnl | 6,875.5000 | -324.3100 | -2,100.0500 |
+| Q5_total_pnl | 1,027.5000 | -5,585.8400 | -2,364.5300 |
+| Q1_total_pnl | -336.8600 | -324.3100 | -2,100.0500 |
 | AAPL_pnl | -1,989.0100 | -4,534.7100 | 559.3800 |
 | NVDA_pnl | -2,366.3800 | -471.3200 | -88.5400 |
 
@@ -106,11 +106,11 @@ Confidence quintile labels are assigned at trade-entry time using the parameters
 
 | quintile | n | win_rate | total_pnl | avg_pnl |
 |---|---|---|---|---|
-| Q1 | 333 | 0.56 | 6,875.50 | 20.65 |
-| Q2 | 6 | 0.67 | 511.88 | 85.31 |
-| Q3 | 7 | 0.43 | -162.94 | -23.28 |
-| Q4 | 3 | 0.67 | 27.60 | 9.20 |
-| Q5 | 11 | 0.00 | -1,415.91 | -128.72 |
+| Q1 | 76 | 0.49 | -336.86 | -4.43 |
+| Q2 | 94 | 0.51 | -251.53 | -2.68 |
+| Q3 | 64 | 0.53 | 1,234.36 | 19.29 |
+| Q4 | 58 | 0.71 | 4,162.66 | 71.77 |
+| Q5 | 68 | 0.53 | 1,027.50 | 15.11 |
 
 **Walk-forward (entry-time params):**
 
@@ -122,7 +122,7 @@ Confidence quintile labels are assigned at trade-entry time using the parameters
 | Q4 | 17 | 0.24 | -1,695.80 | -99.75 |
 | Q5 | 22 | 0.36 | -2,364.53 | -107.48 |
 
-**Q5 - Q1 spread:** in-sample -$8,291.41, 75/25 OOS -$5,261.53, walk-forward -$264.48.
+**Q5 - Q1 spread:** in-sample $1,364.36, 75/25 OOS -$5,261.53, walk-forward -$264.48.
 
 ## 8. Per-ticker breakdown
 
@@ -150,11 +150,11 @@ Confidence quintile labels are assigned at trade-entry time using the parameters
 
 ## 9. Verdict
 
-**DEGRADES CONSISTENTLY.**  Walk-forward total Sharpe (-1.2400) is statistically indistinguishable from zero -- the entire +0.4973 in-sample edge does not reproduce.  The rolling 60-day distribution has mean +0.0232 (std 8.6056) with substantial dispersion (20 windows above +0.5 vs 44 below -0.5, 33% positive overall) -- the strategy is not uniformly bad in every refit window, but on average and on aggregate P&L it does not produce edge.  Q5-Q1 spread -$264.48 inverts the in-sample ordering of -$8,291.41: even after averaging over 195 refit windows, the model's 'highest confidence' bucket still systematically loses money.  4 ticker P&L sign-flips on > $100 magnitude.  The 75/25 finding reproduces under finer-grained refits: R3's +$6,775 / +0.41 Sharpe baseline is largely in-sample inflation.  v2_10t promotion on the current evidence is premature; the production R3 sizing decision was made on numbers that do not survive any honest holdout test.
+**DEGRADES CONSISTENTLY.**  Walk-forward total Sharpe (-1.2400) is statistically indistinguishable from zero -- the entire +0.4973 in-sample edge does not reproduce.  The rolling 60-day distribution has mean +0.0232 (std 8.6056) with substantial dispersion (20 windows above +0.5 vs 44 below -0.5, 33% positive overall) -- the strategy is not uniformly bad in every refit window, but on average and on aggregate P&L it does not produce edge.  Q5-Q1 spread -$264.48 inverts the in-sample ordering of $1,364.36: even after averaging over the walk-forward refit windows, the model's 'highest confidence' bucket still systematically loses money.  4 ticker P&L sign-flips on > $100 magnitude.  The 75/25 finding reproduces under finer-grained refits: R3's +$6,775 / +0.41 Sharpe baseline is largely in-sample inflation.  v2_10t promotion on the current evidence is premature; the production R3 sizing decision was made on numbers that do not survive any honest holdout test.
 
 ## 10. Caveats
 
-- **Synthetic-sentiment caveat (still load-bearing).**  All trades have `is_synthetic=True`.  Walk-forward on the deterministic synthetic generator is a single realisation, not a Monte Carlo over RNG draws.  Real-mode walk-forward on accumulated live news will differ structurally.
+- **Synthetic-sentiment caveat (still load-bearing).**  Trade corpus drawn from the synthetic-mode flat backtest (deterministic per-ticker sentiment seed).  Walk-forward on the synthetic generator is a single realisation, not a Monte Carlo over RNG draws.  Real-mode walk-forward on accumulated live news will differ structurally.
 - **Evaluable date range.**  2025-07-02 -> 2026-05-01 (123 signals before the warmup cutoff are not evaluated).
 - **Rolling-window error bars.**  60-day windows on this trade-frequency contain ~10-30 trades; individual window Sharpes are noisy and should not be over-interpreted.  The distributional summary is the right unit of analysis.
 - **Single-realisation caveat.**  Synthetic sentiment seed is deterministic per ticker (`seed = sum(ord(c) for c in ticker)`).  Rerunning would produce identical results; a Monte Carlo over different seeds would require a code change in `backtest/engine._generate_synthetic_history` (out of scope).
@@ -163,8 +163,8 @@ Confidence quintile labels are assigned at trade-entry time using the parameters
 
 | artifact | mtime_pre | mtime_post | size_unchanged |
 |---|---|---|---|
-| kelly_stats.csv (production) | 1777679169.712 | 1777679169.712 | 1 |
-| quintile_edges.json (production) | 1777679169.714 | 1777679169.714 | 1 |
+| kelly_stats.csv (production) | 1777945077.126 | 1777945077.126 | 1 |
+| quintile_edges.json (production) | 1777945077.129 | 1777945077.129 | 1 |
 | confidence_model.json (production) | 1777081780.784 | 1777081780.784 | 1 |
 
 **Production artifacts unchanged: CONFIRMED.**  No artifacts under `data/raw/` were written or modified during this audit.  All parameter snapshots were held in memory only.

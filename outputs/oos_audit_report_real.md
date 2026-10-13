@@ -2,11 +2,11 @@
 
 **Mode: REAL**
 
-_Tests how much of the +$6,775 / Sharpe 0.41 / 357 trades R3 production baseline is in-sample inflation vs out-of-sample edge.  Fits Kelly stats, quintile edges, and confidence model on the earliest 75% of the flat corpus; re-derives Kelly sizing on the last 25% using those train-fitted parameters; reports headline metrics for full corpus (in-sample), train fold, test fold._
+_Tests how much of the +$9,697 / Sharpe 1.17 / 295 trades R3 production baseline is in-sample inflation vs out-of-sample edge.  Fits Kelly stats, quintile edges, and confidence model on the earliest 75% of the flat corpus; re-derives Kelly sizing on the last 25% using those train-fitted parameters; reports headline metrics for full corpus (in-sample), train fold, test fold._
 
 ## 1. The audit's question
 
-When the three in-sample-leakage parameters (Kelly stats, quintile edges, confidence model) are fit only on the chronologically-earliest 75% of the trade corpus and the strategy is evaluated only on the last 25%, do the headline metrics survive?  If they do, the +$6,775 is a defensible signal-edge measurement; if they collapse, the headline is in-sample inflation.
+When the three in-sample-leakage parameters (Kelly stats, quintile edges, confidence model) are fit only on the chronologically-earliest 75% of the trade corpus and the strategy is evaluated only on the last 25%, do the headline metrics survive?  If they do, the +$9,697 is a defensible signal-edge measurement; if they collapse, the headline is in-sample inflation.
 
 ## 2. Methodology
 
@@ -88,7 +88,7 @@ When the three in-sample-leakage parameters (Kelly stats, quintile edges, confid
 - **IWM**: in-sample $254.92 -> test fold -$201.00.
 - **NVDA**: in-sample $950.78 -> test fold -$308.66.
 
-**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  Train fold: $431.11 on 15 taken trades.  Test fold: -$183.01 on 8 taken trades.  The Dec-2025/Jan-2026 stop cluster identified in `outputs/aapl_stop_diagnosis.md` falls in the TEST fold (cluster end 2026-01-12 vs cutoff 2025-12-22).
+**AAPL.**  Train fold: $431.11 on 15 taken trades.  Test fold: -$183.01 on 8 taken trades (cutoff 2025-12-22).  `outputs/aapl_stop_diagnosis.md` is a synthetic-only diagnostic; a real-mode AAPL stop-cluster post-mortem has not been published.
 
 ## 5. Per-quintile breakdown
 
@@ -128,12 +128,12 @@ Quintile binning uses the production edges for the in-sample column and the trai
 
 ## 6. Verdict
 
-**PARTIAL.**  Test-fold Sharpe (+0.9790) shows meaningful degradation vs in-sample (+1.1732; +17%) but remains positive.  Q5-Q1 ordering: test fold $1,101.14 vs in-sample $1,079.21 (preserved).  3 ticker P&L sign-flips with |pnl| > $100.  The +$6,775 baseline is partly in-sample-inflated -- some of the headline is a property of fitting and testing on the same dates, but a real OOS edge survives.  The R3 selection decision was made on numbers that overstate the underlying edge by a factor of roughly 1.2x in Sharpe terms.  The v2_10t promotion question should not be made on the current in-sample numbers; refit + holdout-validate v2_10t on the same 75/25 split before any decision.
+**PARTIAL.**  Test-fold Sharpe (+0.9790) shows meaningful degradation vs in-sample (+1.1732; +17%) but remains positive.  Q5-Q1 ordering: test fold $1,101.14 vs in-sample $1,079.21 (preserved).  3 ticker P&L sign-flips with |pnl| > $100.  The +$9,697 baseline is partly in-sample-inflated -- some of the headline is a property of fitting and testing on the same dates, but a real OOS edge survives.  The R3 selection decision was made on numbers that overstate the underlying edge by a factor of roughly 1.2x in Sharpe terms.  The v2_10t promotion question should not be made on the current in-sample numbers; refit + holdout-validate v2_10t on the same 75/25 split before any decision.
 
 
 ## 7. Caveats
 
-- **Synthetic-sentiment caveat (still load-bearing).**  Every trade in the corpus has `is_synthetic=True`.  This audit measures generalisation **within the synthetic generator's deterministic-seed walk**, not generalisation to live sentiment.  A real-mode run (`scripts/r3_baseline.py --real`) would produce a structurally different corpus.
+- **Real-corpus single-regime caveat.**  Trade corpus drawn from the real-news flat backtest covering ~12 months of headlines (~2025-05 to 2026-05).  This audit measures generalisation **within a single news regime**, not across regimes; per-ticker P&L is heavily concentrated in a small subset of names (see PROJECT_STATE Section 10.2).  A structurally different corpus (different ticker mix, different macro window) would produce different in-sample-vs-OOS dynamics.
 - **Single-split caveat.**  A 75/25 chronological holdout is one sample of 'future data.'  Walk-forward refit-every-N-days would give a distribution of OOS Sharpe estimates rather than a single point.  Given this audit's outcome, walk-forward is the warranted next session.
 - **Test-fold size caveat.**  The test fold contains 125 signals and 67 taken trades.  Sharpe at this sample size has wide error bars; the point estimate +0.9790 should be read with that in mind.  The standard error of an annualised Sharpe at this trade count is roughly 1/sqrt(67/5) per year-equivalent ~ 0.27, so the 95% CI is roughly +/- 0.55 around the point estimate.
 - **Open-risk cap approximation.**  `size_trade` was called with `open_risk_dollars=0`, which assumes the global 6% cap never binds in the test fold.  The production Kelly run had peak utilisation 0.69 (well below 1.0); on a smaller fold this is even less likely to bind.

@@ -192,6 +192,14 @@ ACCOUNT_NOTIONAL   = 10_000.0
 # point estimate -- garbage in, garbage out.
 MIN_TRADES_FOR_KELLY = 10
 
+# KELLY_FILTER_BYPASS: research-probe override of the universe-aggregated
+# Kelly filter for specific (ticker, signal) pairs.  Bypassed pairs skip
+# the negative-Kelly early-return; downstream sizing (uniform / quintile)
+# handles them.  Preserves locked decisions #1, #2, #4.  Reversal: set to
+# `set()`.  Current entry probes UNH BUY PUTS where sector-decay found
+# coherent positive directional drift (PROJECT_STATE Section 10.1 #3).
+KELLY_FILTER_BYPASS: set = {("UNH", "BUY PUTS")}
+
 # ---------------------------------------------------------------------------
 # TODO (2026-04-25, real-data session): re-enable SELL PUTS in production.
 # ---------------------------------------------------------------------------
@@ -466,6 +474,7 @@ def size_trade(
     account_notional:      float = ACCOUNT_NOTIONAL,
     use_segregated_buckets: Optional[bool] = None,
     quintile_edges:        Optional[list] = None,
+    ticker:                Optional[str] = None,
 ) -> dict:
     """
     Translate an edge estimate + a confidence score into an integer
@@ -535,13 +544,14 @@ def size_trade(
     # disabled after decay study flagged it.
     if s and int(s.get("count", 0)) >= MIN_TRADES_FOR_KELLY:
         raw_f = float(s.get("kelly_f", 0.0))
-        if raw_f <= 0:
+        bypassed = (ticker, signal) in KELLY_FILTER_BYPASS
+        if raw_f <= 0 and not bypassed:
             return {"contracts": 0, "tradable": False, "kelly_f": raw_f,
                     "effective_frac": 0.0, "dollar_risk": 0.0,
                     "bucket_frac": 0.0, "bucket_used_before": 0.0,
                     "bucket_cap_dollars": 0.0,
                     "reason": f"negative_kelly_{signal}"}
-        kelly_f = raw_f
+        kelly_f = raw_f if not bypassed else 0.0
     else:
         kelly_f = 0.0
 

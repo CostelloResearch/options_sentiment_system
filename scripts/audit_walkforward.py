@@ -56,6 +56,87 @@ REJECT_REASONS = {
     "portfolio_risk_cap", "rejected_risk_reward",
 }
 
+# ---------------------------------------------------------------------------
+# Mode-conditional prose lookup
+# ---------------------------------------------------------------------------
+# Audit prose changes between the synthetic-corpus (DEMO) and real-news
+# (REAL) backtests: the headline R3 baseline differs in each mode, the
+# prior 75/25 audit returned different verdicts in each mode, and corpus
+# caveats differ structurally.  Numerical content of the audit (tables,
+# metrics) is unchanged by this lookup -- it only affects which phrasing
+# the report-builder substitutes into prose paragraphs.
+
+_BASELINE_REAL = {
+    "baseline_full":   "+$9,697 / Sharpe 1.17 / 295 trades",
+    "baseline_pnl":    "+$9,697",
+    "baseline_sharpe": "+1.17",
+    "prior_oos_verdict_phrase": (
+        "PARTIAL verdict (Sharpe +1.17 in-sample -> +0.98 OOS) on the "
+        "real-news 75/25 holdout (cutoff 2025-12-22)"
+    ),
+    "oos_75_25_footnote": (
+        "_75/25 OOS column shows the synthetic-mode reference values from "
+        "`outputs/oos_audit_report.md` (cutoff 2025-11-17); the comparison "
+        "column has not been re-derived from the real-mode 75/25 audit "
+        "(`outputs/oos_audit_report_real.md`).  Walk-forward column is "
+        "computed in this session on the real-mode flat corpus.  The "
+        "in-sample baseline column is real-mode and shares with both other "
+        "columns the same per-share P&L from the real-news flat backtest._\n\n"
+    ),
+    "corpus_caveat": (
+        "- **Real-corpus single-regime caveat.**  Trade corpus drawn "
+        "from the real-news flat backtest covering ~12 months of "
+        "headlines (~2025-05 to 2026-05).  Walk-forward on a single "
+        "real-news regime is one realisation, not a Monte Carlo over "
+        "macro conditions; per-ticker P&L is heavily concentrated "
+        "(see PROJECT_STATE Section 10.2).  A different corpus window "
+        "or ticker mix would produce different rolling-Sharpe "
+        "dynamics.\n"
+    ),
+    "single_realisation_caveat": (
+        "- **Single-corpus caveat.**  This audit replays exactly one "
+        "real-news corpus collected for the production universe.  The "
+        "rolling-Sharpe distribution captures within-corpus variance, "
+        "not cross-corpus variance from re-ingesting different news "
+        "windows or ticker mixes.\n\n"
+    ),
+}
+
+_BASELINE_DEMO = {
+    "baseline_full":   "+$6,775 / Sharpe 0.41 / 357 trades",
+    "baseline_pnl":    "+$6,775",
+    "baseline_sharpe": "+0.41",
+    "prior_oos_verdict_phrase": (
+        "DEGRADES verdict (Sharpe +0.41 in-sample -> -0.60 OOS, Q5 "
+        "confidence-bucket inversion)"
+    ),
+    "oos_75_25_footnote": (
+        "_75/25 OOS column reproduced from `outputs/oos_audit_report.md` "
+        "(cutoff 2025-11-17); walk-forward column computed in this "
+        "session.  Both share the in-sample comparison baseline._\n\n"
+    ),
+    "corpus_caveat": (
+        "- **Synthetic-sentiment caveat (still load-bearing).**  Trade "
+        "corpus drawn from the synthetic-mode flat backtest "
+        "(deterministic per-ticker sentiment seed).  Walk-forward on "
+        "the synthetic generator is a single realisation, not a Monte "
+        "Carlo over RNG draws.  Real-mode walk-forward on accumulated "
+        "live news will differ structurally.\n"
+    ),
+    "single_realisation_caveat": (
+        "- **Single-realisation caveat.**  Synthetic sentiment seed is "
+        "deterministic per ticker (`seed = sum(ord(c) for c in ticker)`).  "
+        "Rerunning would produce identical results; a Monte Carlo over "
+        "different seeds would require a code change in "
+        "`backtest/engine._generate_synthetic_history` (out of scope).\n\n"
+    ),
+}
+
+
+def _baseline_phrases(mode_label: str) -> dict:
+    return _BASELINE_REAL if mode_label == "REAL" else _BASELINE_DEMO
+
+
 # Frozen reference numbers from outputs/oos_audit_report.md.  Re-deriving
 # would duplicate ~80 lines of audit_oos_split.py; the on-disk corpus is
 # stable so these values are reproducible by re-running that script.
@@ -486,6 +567,8 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     _out_file  = "walkforward_audit_report_real.md" if mode_label == "REAL" else "walkforward_audit_report.md"
     _flag      = " --real"               if mode_label == "REAL" else ""
 
+    phrases = _baseline_phrases(mode_label)
+
     audit_tickers = audit_tickers if audit_tickers is not None else list(config.TICKERS)
     missing_tickers = missing_tickers if missing_tickers is not None else []
     is_partial = (mode_label == "REAL") and bool(missing_tickers)
@@ -505,17 +588,17 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     # =====================================================================
     md.append("## 1. Question and methodology summary\n\n")
     md.append(
-        "_Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe "
-        "+0.41 in-sample -> -0.60 OOS, Q5 confidence-bucket inversion) is "
-        "universal across refit windows or specific to the single "
-        "2025-11-17 cutoff date.  Kelly stats, quintile edges, and the "
-        "confidence model are refit each time a new accepted trade "
-        "completes; every signal is sized with parameters that knew "
-        "nothing about its outcome.  Path-(b) post-hoc re-derivation: "
-        "the flat corpus's per-share `pnl` and `max_loss` are spread + "
-        "real-price properties unchanged by sizing -- only contract counts "
-        "shift between sizing regimes.  No production code, sizing logic, "
-        "or on-disk artifact is modified._\n\n"
+        f"_Tests whether the prior 75/25 audit's "
+        f"{phrases['prior_oos_verdict_phrase']} is universal across refit "
+        f"windows or specific to that single cutoff date.  Kelly stats, "
+        f"quintile edges, and the confidence model are refit each time a "
+        f"new accepted trade completes; every signal is sized with "
+        f"parameters that knew nothing about its outcome.  Path-(b) "
+        f"post-hoc re-derivation: the flat corpus's per-share `pnl` and "
+        f"`max_loss` are spread + real-price properties unchanged by "
+        f"sizing -- only contract counts shift between sizing regimes.  "
+        f"No production code, sizing logic, or on-disk artifact is "
+        f"modified._\n\n"
     )
 
     # =====================================================================
@@ -639,12 +722,7 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
          "walk_forward":nvda_wf},
     ])
     md.append(df_to_md(cmp_df, float_fmt="{:,.4f}"))
-    md.append(
-        f"\n_75/25 OOS column reproduced from `outputs/oos_audit_report.md` "
-        f"(cutoff {OOS_75_25['cutoff_date']}); walk-forward column "
-        f"computed in this session.  Both share the in-sample comparison "
-        f"baseline._\n\n"
-    )
+    md.append("\n" + phrases["oos_75_25_footnote"])
 
     # =====================================================================
     # 5. Sharpe distribution analysis
@@ -780,15 +858,25 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     aapl_row = merged[merged["ticker"] == "AAPL"]
     if len(aapl_row):
         a = aapl_row.iloc[0]
-        md.append(
-            f"\n**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  "
-            f"Walk-forward: {fmt_money(a['pnl_wf'])} on "
-            f"{int(a['n_taken_wf'])} taken trades.  The Dec-2025 / Jan-2026 "
-            f"stop cluster from `outputs/aapl_stop_diagnosis.md` falls "
-            f"after the warmup cutoff "
-            f"({warmup_cutoff.strftime('%Y-%m-%d') if warmup_cutoff else 'N/A'}) "
-            f"so it is in the walk-forward evaluable window.\n\n"
-        )
+        if mode_label == "REAL":
+            md.append(
+                f"\n**AAPL.**  Walk-forward: {fmt_money(a['pnl_wf'])} on "
+                f"{int(a['n_taken_wf'])} taken trades.  Warmup cutoff: "
+                f"{warmup_cutoff.strftime('%Y-%m-%d') if warmup_cutoff else 'N/A'}.  "
+                f"`outputs/aapl_stop_diagnosis.md` is a synthetic-only "
+                f"diagnostic; a real-mode AAPL stop-cluster post-mortem "
+                f"has not been published.\n\n"
+            )
+        else:
+            md.append(
+                f"\n**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  "
+                f"Walk-forward: {fmt_money(a['pnl_wf'])} on "
+                f"{int(a['n_taken_wf'])} taken trades.  The Dec-2025 / Jan-2026 "
+                f"stop cluster from `outputs/aapl_stop_diagnosis.md` falls "
+                f"after the warmup cutoff "
+                f"({warmup_cutoff.strftime('%Y-%m-%d') if warmup_cutoff else 'N/A'}) "
+                f"so it is in the walk-forward evaluable window.\n\n"
+            )
 
     # =====================================================================
     # 9. Verdict
@@ -798,6 +886,7 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
         h_in_sample=h_in_sample, h_wf=h_wf, rolling_df=rolling_df,
         q5_in=q5_in, q1_in=q1_in, q5_wf=q5_wf, q1_wf=q1_wf,
         n_flips=int(len(flips)),
+        mode_label=mode_label,
     )
     md.append(f"**{verdict}.**  {body}\n\n")
 
@@ -810,23 +899,15 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
     eval_max = pd.to_datetime(eval_df["entry_date"]).max().strftime("%Y-%m-%d") \
                if len(eval_df) else "N/A"
     md.append(
-        f"- **Synthetic-sentiment caveat (still load-bearing).**  All "
-        f"trades have `is_synthetic=True`.  Walk-forward on the "
-        f"deterministic synthetic generator is a single realisation, "
-        f"not a Monte Carlo over RNG draws.  Real-mode walk-forward on "
-        f"accumulated live news will differ structurally.\n"
-        f"- **Evaluable date range.**  {eval_min} -> {eval_max} "
+        phrases["corpus_caveat"]
+        + f"- **Evaluable date range.**  {eval_min} -> {eval_max} "
         f"({n_warmup} signals before the warmup cutoff are not "
         f"evaluated).\n"
         f"- **Rolling-window error bars.**  60-day windows on this "
         f"trade-frequency contain ~10-30 trades; individual window "
         f"Sharpes are noisy and should not be over-interpreted.  The "
         f"distributional summary is the right unit of analysis.\n"
-        f"- **Single-realisation caveat.**  Synthetic sentiment seed is "
-        f"deterministic per ticker (`seed = sum(ord(c) for c in ticker)`).  "
-        f"Rerunning would produce identical results; a Monte Carlo over "
-        f"different seeds would require a code change in "
-        f"`backtest/engine._generate_synthetic_history` (out of scope).\n\n"
+        + phrases["single_realisation_caveat"]
     )
 
     # =====================================================================
@@ -866,9 +947,11 @@ def build_report(*, flat, eval_df, n_warmup, refit_events,
 
 
 def compose_verdict(*, h_in_sample, h_wf, rolling_df, q5_in, q1_in, q5_wf, q1_wf,
-                    n_flips) -> tuple[str, str]:
+                    n_flips, mode_label: str = "DEMO") -> tuple[str, str]:
+    phrases = _baseline_phrases(mode_label)
     sh_in = h_in_sample["sharpe"]
     sh_wf = h_wf["sharpe"]
+    oos_sh = float(OOS_75_25["sharpe"])
     spread_in = q5_in - q1_in if not (np.isnan(q5_in) or np.isnan(q1_in)) else float("nan")
     spread_wf = q5_wf - q1_wf if not (np.isnan(q5_wf) or np.isnan(q1_wf)) else float("nan")
 
@@ -906,7 +989,7 @@ def compose_verdict(*, h_in_sample, h_wf, rolling_df, q5_in, q1_in, q5_wf, q1_wf
     if verdict == "GENERALIZES UNDER WALK-FORWARD":
         body = (
             f"Walk-forward total Sharpe ({sh_wf:+.4f}) is within ~30% of "
-            f"in-sample (+0.4103); rolling 60-day Sharpe distribution is "
+            f"in-sample ({sh_in:+.4f}); rolling 60-day Sharpe distribution is "
             f"{100*roll_pos_frac:.0f}% positive ({n_strong_pos} windows >+0.5 "
             f"vs {n_strong_neg} <-0.5); Q5-Q1 spread {fmt_money(spread_wf)} "
             f"preserves the in-sample ordering; {n_flips} ticker sign-flips.  "
@@ -918,7 +1001,7 @@ def compose_verdict(*, h_in_sample, h_wf, rolling_df, q5_in, q1_in, q5_wf, q1_wf
     elif verdict == "DEGRADES CONSISTENTLY":
         body = (
             f"Walk-forward total Sharpe ({sh_wf:+.4f}) is statistically "
-            f"indistinguishable from zero -- the entire +{sh_in:.4f} "
+            f"indistinguishable from zero -- the entire {sh_in:+.4f} "
             f"in-sample edge does not reproduce.  The rolling 60-day "
             f"distribution has mean {roll_mean:+.4f} (std {roll_std:.4f}) "
             f"with substantial dispersion ({n_strong_pos} windows above "
@@ -929,32 +1012,34 @@ def compose_verdict(*, h_in_sample, h_wf, rolling_df, q5_in, q1_in, q5_wf, q1_wf
             f"spread {fmt_money(spread_wf)} "
             f"{'inverts' if spread_wf < 0 else 'collapses'} the "
             f"in-sample ordering of {fmt_money(q5_in - q1_in)}: even "
-            f"after averaging over 195 refit windows, the model's "
-            f"'highest confidence' bucket still systematically loses "
-            f"money.  {n_flips} ticker P&L sign-flips on > $100 "
+            f"after averaging over the walk-forward refit windows, the "
+            f"model's 'highest confidence' bucket still systematically "
+            f"loses money.  {n_flips} ticker P&L sign-flips on > $100 "
             f"magnitude.  The 75/25 finding reproduces under "
-            f"finer-grained refits: R3's +$6,775 / +0.41 Sharpe "
-            f"baseline is largely in-sample inflation.  v2_10t "
-            f"promotion on the current evidence is premature; the "
-            f"production R3 sizing decision was made on numbers that "
-            f"do not survive any honest holdout test.")
+            f"finer-grained refits: R3's {phrases['baseline_pnl']} / "
+            f"{phrases['baseline_sharpe']} Sharpe baseline is largely "
+            f"in-sample inflation.  v2_10t promotion on the current "
+            f"evidence is premature; the production R3 sizing decision "
+            f"was made on numbers that do not survive any honest "
+            f"holdout test.")
     else:  # WINDOW-DEPENDENT
         body = (
             f"Walk-forward total Sharpe ({sh_wf:+.4f}) is between in-sample "
-            f"(+0.4103) and the 75/25 OOS estimate (-0.5977), and the "
-            f"rolling 60-day distribution shows substantial variance: mean "
-            f"{roll_mean:+.4f}, std {roll_std:.4f} across {n_windows} "
-            f"windows ({n_strong_pos} >+0.5 / {n_strong_neg} <-0.5).  "
-            f"{100*roll_pos_frac:.0f}% of windows are positive.  Q5-Q1 "
-            f"spread {fmt_money(spread_wf)} (in-sample {fmt_money(spread_in)}, "
-            f"75/25 OOS {fmt_money(OOS_75_25['Q5_pnl']-OOS_75_25['Q1_pnl'])}).  "
+            f"({sh_in:+.4f}) and the 75/25 OOS reference estimate "
+            f"({oos_sh:+.4f}), and the rolling 60-day distribution shows "
+            f"substantial variance: mean {roll_mean:+.4f}, std "
+            f"{roll_std:.4f} across {n_windows} windows ({n_strong_pos} "
+            f">+0.5 / {n_strong_neg} <-0.5).  {100*roll_pos_frac:.0f}% of "
+            f"windows are positive.  Q5-Q1 spread {fmt_money(spread_wf)} "
+            f"(in-sample {fmt_money(spread_in)}, 75/25 OOS reference "
+            f"{fmt_money(OOS_75_25['Q5_pnl']-OOS_75_25['Q1_pnl'])}).  "
             f"{n_flips} ticker P&L sign-flips.  The 75/25 audit's verdict "
             f"was an over-statement: walk-forward shows the strategy does "
             f"have edge in some refit periods and not others rather than "
             f"a uniform collapse.  Recommend regime analysis as the next "
             f"session: identify which periods produce positive Sharpe and "
             f"what distinguishes them (vol regime, sector rotation, "
-            f"sentiment-generator cycle).")
+            f"corpus-window cycle).")
     return verdict, body
 
 

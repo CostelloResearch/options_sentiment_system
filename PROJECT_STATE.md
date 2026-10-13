@@ -2823,3 +2823,115 @@ provisional.  Interview framing: "I trust the corrected pipeline
 because I broke and fixed it three times before relying on the
 output, and I have a documented re-validation diff between
 pre-fix and post-fix scores."
+
+### 2026-05-05 Mechanism C: UNH BUY PUTS Kelly-filter bypass + Kelly-mode P&L
+
+Added a research-probe `KELLY_FILTER_BYPASS` set at module level in
+`signals/position_sizer.py` (currently `{("UNH", "BUY PUTS")}`),
+threaded a `ticker: Optional[str] = None` kwarg into `size_trade()`,
+and gated the negative-Kelly early-return so bypassed pairs skip the
+filter and fall through to the uniform/quintile sizing path.  Engine
+([backtest/engine.py:866](backtest/engine.py:866)) passes
+`ticker=ticker` to the call site.  Total diff: 13 insertions / 2
+deletions across the two files; all four sites confined to bypass
+constant + signature kwarg + bypass branch + engine call.  Audit
+scripts and `regime_comparison.py` not modified -- the kwarg's
+`None` default keeps `(None, signal)` out of the bypass set so
+audit refit paths and the regime A/B harness behave identically to
+pre-prompt.  Locked decisions #1, #2, #4 untouched: spread builder
+still applies 60-DTE / 0.25Δ for BEAR_PUT_DEBIT regardless of
+sizing, Option A uniform sizing path is what runs after bypass,
+legacy tiered confidence is upstream of the filter.  Reversal: set
+`KELLY_FILTER_BYPASS = set()`.
+
+Re-ran `r3_baseline.py --real` post-bypass.  `data/raw/kelly_stats.csv`,
+`confidence_model.json`, `quintile_edges.json` byte-identical
+pre/post (md5 unchanged) -- bypass does not leak into stats
+computation.  Other 9 tickers' BUY PUTS rows still
+`contracts=0, kelly_reason="negative_kelly_BUY PUTS"`
+(spot-checked AAPL/NVDA/JPM).  Real-mode universe Kelly headline:
++$13,906 / Sharpe 0.91 / 314 trades (vs the prior +$9,697 / 1.17
+/ 295 baseline -- the +$4,209 delta is the UNH BUY PUTS contribution
+plus a one-day yfinance refresh on `expiration` exits).
+
+UNH BUY PUTS Kelly-mode cohort: 20 of 21 signal rows now
+`contracts > 0` (1 blocked by `portfolio_risk_cap`); 14 "ok" sized
++ 6 "floor_over_cap" reflecting MIN_CONTRACTS=1 over the
+$380/trade UNIFORM_PER_TRADE_FRAC budget at $100k notional.  Stats:
+**total +$3,994.40 / mean +$199.72 / median +$792.80 / std $913.20
+/ win rate 0.55 / profit factor 1.60 / Sharpe +1.55 / max DD
+-$4,575**.  Comparison to Path 1 1-contract flat baseline (+$3,255
+/ 1.20 / 1.44, n=21): Kelly cohort posts +$739 higher total because
+the cap-blocked entry was a loser, not because contract counts
+differ (20 of 21 took at floor=1, identical per-trade pricing).
+Verdict bucket: **SURVIVES** -- Kelly-mode numbers strengthen the
+Path 1 finding rather than diluting it.  Regime split caveat
+unchanged: profitable Jun-Aug / Oct-Nov 2025 cluster + losing
+Nov 2025 - Mar 2026 cluster on time-stops as UNH rebounded.
+Sample-size caveat unchanged (n=20).  Production decision (re-enable
+BUY PUTS for UNH on a permanent basis vs treat as research probe
+only) is the next session's question, conditional on a
+walk-forward-style stability check.
+
+### 2026-05-05 Sector-decay --real plumbing + Healthcare BUY PUTS read
+
+`scripts/sector_decay.py` previously hardcoded `backtest_{T}_demo.csv`
+in `_load_flat_logs_for` and the output filename
+`outputs/sector_decay_analysis.md`.  Added `--real` (action="store_true")
+matching the `r3_baseline.py` / `audit_oos_split.py` idiom, threaded
+`real_mode` through `main()` into `_load_flat_logs_for(tickers,
+real_mode)` (path-string ternary swap to `backtest_{T}.csv`), branched
+the report path to `outputs/sector_decay_analysis_real.md` so demo
+runs no longer get clobbered, and added a stderr warning when a flat
+log is missing.  Diff: 11 insertions / 6 deletions, +5 net, confined
+to argparse, `_load_flat_logs_for` signature/path, `main()` threading,
+output-path branch.  `signals/signal_decay.py` byte-identical (price
+loader is yfinance-backed and mode-agnostic).
+
+Real-mode 10-ticker sector-decay finding (motivated by §10.1 #3,
+Healthcare-only BUY PUTS re-enable hypothesis): at the 20d horizon
+**Healthcare is the only sector with positive BUY PUTS mean directional
+return (+2.67% on n=21)**.  All other sectors are negative at 20d --
+BroadMarket -3.21%/n=9, Commodity -6.42%/n=8, ConsumerStaples
+-5.91%/n=4, Energy -3.23%/n=7, Financials -1.86%/n=2, FixedIncome
+-0.46%/n=57, SmallCapEquity -4.55%/n=37, Technology -1.12%/n=5.
+Healthcare BUY PUTS is positive at all three crosstab horizons (5d
++1.27%, 10d +4.34%, 20d +2.67%) on n=21, so the signal is coherent
+across horizons rather than a one-bar spike.  Sample size (n=21) is
+above the small-sample floor but modest -- the Healthcare-only
+re-enable hypothesis SURVIVES the underlying-direction sector-decay
+test on real data; whether it survives the option-P&L conversion
+(60 DTE / 0.25Δ structure + friction) is the separate follow-up
+question.  Production sizing untouched -- BUY PUTS remains zero-
+contracted under the current Kelly_f=-0.0567 universe-wide gate.
+Report: `outputs/sector_decay_analysis_real.md`.
+
+### 2026-05-05 Audit-report prose parameterised by mode (DEMO vs REAL)
+
+`scripts/audit_oos_split.py` and `scripts/audit_walkforward.py`
+report-builders previously hardcoded synthetic-baseline prose
+(`+$6,775 / Sharpe 0.41 / 357 trades`, `is_synthetic=True`,
+synthetic 75/25 verdict references, `+0.4103` / `-0.5977` Sharpe
+constants in `compose_verdict`) so the four output markdowns
+showed correct numerical tables but mode-mismatched narrative
+when run with `--real`.  Added a `_baseline_phrases(mode_label)`
+lookup near the top of each script returning mode-conditional
+strings (baseline P&L/Sharpe/trade-count, prior-OOS verdict
+phrase, 75/25-OOS column footnote, corpus caveat,
+single-realisation caveat); threaded `mode_label` and the
+phrase dict through `build_report` -> `_compose_verdict_paragraph`
+/ `compose_verdict`; replaced hardcoded Sharpe constants in the
+walk-forward verdict body with dynamic `{sh_in:+.4f}` /
+`OOS_75_25['sharpe']` substitutions; gated AAPL stop-cluster
+prose (synthetic-only `aapl_stop_diagnosis.md` reference) behind
+`mode_label == "DEMO"` with a real-mode replacement that drops
+the synthetic anchor.  Regenerated all four reports
+(`outputs/oos_audit_report.md`, `outputs/oos_audit_report_real.md`,
+`outputs/walkforward_audit_report.md`,
+`outputs/walkforward_audit_report_real.md`); validated via grep
+that real-mode reports contain no `+$6,775` / `Sharpe 0.41` /
+`357 trades` / `is_synthetic=True` hits and synthetic reports
+contain no `+$9,697` / `Sharpe 1.17` / `295 trades` hits.
+No engine, signal, sizing, or config code touched;
+re-run reproduces tables identical to the pre-fix versions for
+each mode.

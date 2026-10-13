@@ -72,6 +72,52 @@ SPLIT_FRAC = 0.75
 
 
 # ---------------------------------------------------------------------------
+# Mode-conditional prose lookup
+# ---------------------------------------------------------------------------
+# Audit prose changes between the synthetic-corpus (DEMO) and real-news
+# (REAL) backtests: the headline R3 baseline is different in each mode,
+# and the corpus caveats differ structurally.  Numerical content of the
+# audit (tables, metrics) is unchanged by this lookup -- it only affects
+# which phrasing the report-builder substitutes into prose paragraphs.
+
+_BASELINE_REAL = {
+    "baseline_full":  "+$9,697 / Sharpe 1.17 / 295 trades",
+    "baseline_pnl":   "+$9,697",
+    "corpus_label":   "real",
+    "corpus_caveat": (
+        "- **Real-corpus single-regime caveat.**  Trade corpus drawn "
+        "from the real-news flat backtest covering ~12 months of "
+        "headlines (~2025-05 to 2026-05).  This audit measures "
+        "generalisation **within a single news regime**, not across "
+        "regimes; per-ticker P&L is heavily concentrated in a small "
+        "subset of names (see PROJECT_STATE Section 10.2).  A "
+        "structurally different corpus (different ticker mix, different "
+        "macro window) would produce different in-sample-vs-OOS "
+        "dynamics.\n"
+    ),
+}
+
+_BASELINE_DEMO = {
+    "baseline_full":  "+$6,775 / Sharpe 0.41 / 357 trades",
+    "baseline_pnl":   "+$6,775",
+    "corpus_label":   "synthetic",
+    "corpus_caveat": (
+        "- **Synthetic-sentiment caveat (still load-bearing).**  Trade "
+        "corpus drawn from the synthetic-mode flat backtest (deterministic "
+        "per-ticker sentiment seed).  This audit measures generalisation "
+        "**within the synthetic generator's deterministic-seed walk**, "
+        "not generalisation to live sentiment.  A real-mode run "
+        "(`scripts/r3_baseline.py --real`) would produce a structurally "
+        "different corpus.\n"
+    ),
+}
+
+
+def _baseline_phrases(mode_label: str) -> dict:
+    return _BASELINE_REAL if mode_label == "REAL" else _BASELINE_DEMO
+
+
+# ---------------------------------------------------------------------------
 # Loaders
 # ---------------------------------------------------------------------------
 
@@ -372,6 +418,8 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     _oos_tag   = "*_oos_train_real.*"    if mode_label == "REAL" else "*_oos_train.*"
     _flag      = " --real"               if mode_label == "REAL" else ""
 
+    phrases = _baseline_phrases(mode_label)
+
     audit_tickers = audit_tickers if audit_tickers is not None else list(config.TICKERS)
     missing_tickers = missing_tickers if missing_tickers is not None else []
     is_partial = (mode_label == "REAL") and bool(missing_tickers)
@@ -386,12 +434,12 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     else:
         md.append(f"**Mode: {mode_label}**\n\n")
     md.append(
-        "_Tests how much of the +$6,775 / Sharpe 0.41 / 357 trades R3 "
-        "production baseline is in-sample inflation vs out-of-sample edge.  "
-        "Fits Kelly stats, quintile edges, and confidence model on the "
-        "earliest 75% of the flat corpus; re-derives Kelly sizing on the "
-        "last 25% using those train-fitted parameters; reports headline "
-        "metrics for full corpus (in-sample), train fold, test fold._\n\n"
+        f"_Tests how much of the {phrases['baseline_full']} R3 "
+        f"production baseline is in-sample inflation vs out-of-sample edge.  "
+        f"Fits Kelly stats, quintile edges, and confidence model on the "
+        f"earliest 75% of the flat corpus; re-derives Kelly sizing on the "
+        f"last 25% using those train-fitted parameters; reports headline "
+        f"metrics for full corpus (in-sample), train fold, test fold._\n\n"
     )
 
     # =====================================================================
@@ -399,12 +447,12 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     # =====================================================================
     md.append("## 1. The audit's question\n\n")
     md.append(
-        "When the three in-sample-leakage parameters (Kelly stats, "
-        "quintile edges, confidence model) are fit only on the "
-        "chronologically-earliest 75% of the trade corpus and the strategy "
-        "is evaluated only on the last 25%, do the headline metrics survive?  "
-        "If they do, the +$6,775 is a defensible signal-edge measurement; "
-        "if they collapse, the headline is in-sample inflation.\n\n"
+        f"When the three in-sample-leakage parameters (Kelly stats, "
+        f"quintile edges, confidence model) are fit only on the "
+        f"chronologically-earliest 75% of the trade corpus and the strategy "
+        f"is evaluated only on the last 25%, do the headline metrics survive?  "
+        f"If they do, the {phrases['baseline_pnl']} is a defensible signal-edge "
+        f"measurement; if they collapse, the headline is in-sample inflation.\n\n"
     )
 
     # =====================================================================
@@ -581,17 +629,28 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     aapl_in = merged[merged["ticker"] == "AAPL"]
     if len(aapl_in):
         a = aapl_in.iloc[0]
-        md.append(
-            f"\n**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  "
-            f"Train fold: {fmt_money(a['pnl_train'])} on "
-            f"{int(a['n_taken_train'])} taken trades.  Test fold: "
-            f"{fmt_money(a['pnl_test'])} on {int(a['n_taken_test'])} taken "
-            f"trades.  The Dec-2025/Jan-2026 stop cluster identified in "
-            f"`outputs/aapl_stop_diagnosis.md` falls in the "
-            f"{'TRAIN' if cutoff > pd.Timestamp('2026-01-12') else 'TEST'} "
-            f"fold (cluster end 2026-01-12 vs cutoff "
-            f"{cutoff.strftime('%Y-%m-%d')}).\n"
-        )
+        if mode_label == "REAL":
+            md.append(
+                f"\n**AAPL.**  Train fold: {fmt_money(a['pnl_train'])} on "
+                f"{int(a['n_taken_train'])} taken trades.  Test fold: "
+                f"{fmt_money(a['pnl_test'])} on {int(a['n_taken_test'])} "
+                f"taken trades (cutoff {cutoff.strftime('%Y-%m-%d')}).  "
+                f"`outputs/aapl_stop_diagnosis.md` is a synthetic-only "
+                f"diagnostic; a real-mode AAPL stop-cluster post-mortem "
+                f"has not been published.\n"
+            )
+        else:
+            md.append(
+                f"\n**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  "
+                f"Train fold: {fmt_money(a['pnl_train'])} on "
+                f"{int(a['n_taken_train'])} taken trades.  Test fold: "
+                f"{fmt_money(a['pnl_test'])} on {int(a['n_taken_test'])} taken "
+                f"trades.  The Dec-2025/Jan-2026 stop cluster identified in "
+                f"`outputs/aapl_stop_diagnosis.md` falls in the "
+                f"{'TRAIN' if cutoff > pd.Timestamp('2026-01-12') else 'TEST'} "
+                f"fold (cluster end 2026-01-12 vs cutoff "
+                f"{cutoff.strftime('%Y-%m-%d')}).\n"
+            )
 
     # =====================================================================
     # 5. Per-quintile breakdown
@@ -663,6 +722,7 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
         spr_in=spr_in, spr_ts=spr_ts,
         n_flips=n_flips, q_ord_preserved=q_ord_preserved,
         h_test=h_test, train_model=train_model, train_stats=train_stats,
+        baseline_pnl=phrases["baseline_pnl"],
     ))
 
     # =====================================================================
@@ -670,13 +730,8 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
     # =====================================================================
     md.append("\n## 7. Caveats\n\n")
     md.append(
-        f"- **Synthetic-sentiment caveat (still load-bearing).**  "
-        f"Every trade in the corpus has `is_synthetic=True`.  This audit "
-        f"measures generalisation **within the synthetic generator's "
-        f"deterministic-seed walk**, not generalisation to live "
-        f"sentiment.  A real-mode run (`scripts/r3_baseline.py --real`) "
-        f"would produce a structurally different corpus.\n"
-        f"- **Single-split caveat.**  A 75/25 chronological holdout is "
+        phrases["corpus_caveat"]
+        + f"- **Single-split caveat.**  A 75/25 chronological holdout is "
         f"one sample of 'future data.'  Walk-forward refit-every-N-days "
         f"would give a distribution of OOS Sharpe estimates rather than "
         f"a single point.  Given this audit's outcome, walk-forward is "
@@ -741,7 +796,8 @@ def build_report(*, cutoff, train_flat, test_flat, full_kelly,
 def _compose_verdict_paragraph(*, verdict, sh_in, sh_test, sh_degradation_pct,
                                pnl_in, pnl_test, spr_in, spr_ts,
                                n_flips, q_ord_preserved,
-                               h_test, train_model, train_stats):
+                               h_test, train_model, train_stats,
+                               baseline_pnl: str = "+$6,775"):
     if verdict == "GENERALIZES":
         body = (
             f"Test-fold Sharpe ({sh_test:+.4f}) is within ~30% of the "
@@ -751,7 +807,7 @@ def _compose_verdict_paragraph(*, verdict, sh_in, sh_test, sh_degradation_pct,
             f"sign on a > $100 magnitude.  The R3 production baseline "
             f"is a defensible signal-edge measurement under the "
             f"chronological holdout test, with the standard caveats "
-            f"about synthetic sentiment and single-split sampling "
+            f"about corpus-window coverage and single-split sampling "
             f"variability.  R3's selection as production sizing and "
             f"the v2_10t promotion question both stand on stronger "
             f"footing after this audit.")
@@ -764,7 +820,7 @@ def _compose_verdict_paragraph(*, verdict, sh_in, sh_test, sh_degradation_pct,
             f"in-sample {fmt_money(spr_in)} ("
             f"{'preserved' if q_ord_preserved else 'inverted'}).  "
             f"{n_flips} ticker P&L sign-flips with |pnl| > $100.  "
-            f"The +$6,775 baseline is partly in-sample-inflated -- "
+            f"The {baseline_pnl} baseline is partly in-sample-inflated -- "
             f"some of the headline is a property of fitting and "
             f"testing on the same dates, but a real OOS edge survives.  "
             f"The R3 selection decision was made on numbers that "
@@ -780,13 +836,13 @@ def _compose_verdict_paragraph(*, verdict, sh_in, sh_test, sh_degradation_pct,
             f"the test fold ({fmt_money(spr_ts)}) "
             f"{'inverts the in-sample ordering' if spr_ts < 0 else 'collapses near zero'}; "
             f"{n_flips} ticker P&L sign-flips on > $100 magnitude.  "
-            f"The +$6,775 headline is largely or entirely in-sample "
+            f"The {baseline_pnl} headline is largely or entirely in-sample "
             f"inflation -- the strategy does not carry the claimed "
             f"edge once parameters are fit on data the evaluation "
             f"window does not see.  R3's selection as production "
             f"sizing was made on numbers that do not reflect "
             f"out-of-sample behaviour; the v2_10t promotion is "
-            f"premature on the current evidence; the +$6,775 "
+            f"premature on the current evidence; the {baseline_pnl} "
             f"figure should not be cited as a forward-looking "
             f"performance estimate without an OOS qualifier.  This "
             f"is the most consequential finding produced by any "

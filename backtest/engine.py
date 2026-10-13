@@ -871,6 +871,7 @@ def run_backtest(
                 open_risk_dollars     = open_risk_dollars,
                 open_risk_by_strategy = open_risk_by_strategy,
                 account_notional      = KELLY_BACKTEST_NOTIONAL,
+                ticker                = ticker,
             )
             base["kelly_contracts"]      = int(size["contracts"])
             base["kelly_effective_frac"] = float(size.get("effective_frac", 0.0))

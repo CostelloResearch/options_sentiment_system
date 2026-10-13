@@ -4,7 +4,7 @@
 
 ## 1. Question and methodology summary
 
-_Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe +0.41 in-sample -> -0.60 OOS, Q5 confidence-bucket inversion) is universal across refit windows or specific to the single 2025-11-17 cutoff date.  Kelly stats, quintile edges, and the confidence model are refit each time a new accepted trade completes; every signal is sized with parameters that knew nothing about its outcome.  Path-(b) post-hoc re-derivation: the flat corpus's per-share `pnl` and `max_loss` are spread + real-price properties unchanged by sizing -- only contract counts shift between sizing regimes.  No production code, sizing logic, or on-disk artifact is modified._
+_Tests whether the prior 75/25 audit's PARTIAL verdict (Sharpe +1.17 in-sample -> +0.98 OOS) on the real-news 75/25 holdout (cutoff 2025-12-22) is universal across refit windows or specific to that single cutoff date.  Kelly stats, quintile edges, and the confidence model are refit each time a new accepted trade completes; every signal is sized with parameters that knew nothing about its outcome.  Path-(b) post-hoc re-derivation: the flat corpus's per-share `pnl` and `max_loss` are spread + real-price properties unchanged by sizing -- only contract counts shift between sizing regimes.  No production code, sizing logic, or on-disk artifact is modified._
 
 ## 2. Walk-forward design specifics
 
@@ -46,7 +46,7 @@ _Tests whether the prior 75/25 audit's DEGRADES verdict (Sharpe +0.41 in-sample 
 | AAPL_pnl | 248.0900 | -4,534.7100 | 569.7600 |
 | NVDA_pnl | 950.7800 | -471.3200 | -121.1000 |
 
-_75/25 OOS column reproduced from `outputs/oos_audit_report.md` (cutoff 2025-11-17); walk-forward column computed in this session.  Both share the in-sample comparison baseline._
+_75/25 OOS column shows the synthetic-mode reference values from `outputs/oos_audit_report.md` (cutoff 2025-11-17); the comparison column has not been re-derived from the real-mode 75/25 audit (`outputs/oos_audit_report_real.md`).  Walk-forward column is computed in this session on the real-mode flat corpus.  The in-sample baseline column is real-mode and shares with both other columns the same per-share P&L from the real-news flat backtest._
 
 ## 5. Rolling 60-day Sharpe distribution
 
@@ -143,18 +143,18 @@ Confidence quintile labels are assigned at trade-entry time using the parameters
 
 - **NVDA**: in-sample $950.78 -> walk-forward -$121.10.
 
-**AAPL (prior diagnosis: -$3,568 in-sample, 13 stop-outs).**  Walk-forward: $569.76 on 19 taken trades.  The Dec-2025 / Jan-2026 stop cluster from `outputs/aapl_stop_diagnosis.md` falls after the warmup cutoff (2025-07-29) so it is in the walk-forward evaluable window.
+**AAPL.**  Walk-forward: $569.76 on 19 taken trades.  Warmup cutoff: 2025-07-29.  `outputs/aapl_stop_diagnosis.md` is a synthetic-only diagnostic; a real-mode AAPL stop-cluster post-mortem has not been published.
 
 ## 9. Verdict
 
-**WINDOW-DEPENDENT.**  Walk-forward total Sharpe (+1.1369) is between in-sample (+0.4103) and the 75/25 OOS estimate (-0.5977), and the rolling 60-day distribution shows substantial variance: mean +2.1194, std 1.8618 across 123 windows (97 >+0.5 / 13 <-0.5).  84% of windows are positive.  Q5-Q1 spread $2,831.00 (in-sample $1,079.21, 75/25 OOS -$5,261.53).  1 ticker P&L sign-flips.  The 75/25 audit's verdict was an over-statement: walk-forward shows the strategy does have edge in some refit periods and not others rather than a uniform collapse.  Recommend regime analysis as the next session: identify which periods produce positive Sharpe and what distinguishes them (vol regime, sector rotation, sentiment-generator cycle).
+**WINDOW-DEPENDENT.**  Walk-forward total Sharpe (+1.1369) is between in-sample (+1.1732) and the 75/25 OOS reference estimate (-0.5977), and the rolling 60-day distribution shows substantial variance: mean +2.1194, std 1.8618 across 123 windows (97 >+0.5 / 13 <-0.5).  84% of windows are positive.  Q5-Q1 spread $2,831.00 (in-sample $1,079.21, 75/25 OOS reference -$5,261.53).  1 ticker P&L sign-flips.  The 75/25 audit's verdict was an over-statement: walk-forward shows the strategy does have edge in some refit periods and not others rather than a uniform collapse.  Recommend regime analysis as the next session: identify which periods produce positive Sharpe and what distinguishes them (vol regime, sector rotation, corpus-window cycle).
 
 ## 10. Caveats
 
-- **Synthetic-sentiment caveat (still load-bearing).**  All trades have `is_synthetic=True`.  Walk-forward on the deterministic synthetic generator is a single realisation, not a Monte Carlo over RNG draws.  Real-mode walk-forward on accumulated live news will differ structurally.
+- **Real-corpus single-regime caveat.**  Trade corpus drawn from the real-news flat backtest covering ~12 months of headlines (~2025-05 to 2026-05).  Walk-forward on a single real-news regime is one realisation, not a Monte Carlo over macro conditions; per-ticker P&L is heavily concentrated (see PROJECT_STATE Section 10.2).  A different corpus window or ticker mix would produce different rolling-Sharpe dynamics.
 - **Evaluable date range.**  2025-07-29 -> 2026-05-04 (99 signals before the warmup cutoff are not evaluated).
 - **Rolling-window error bars.**  60-day windows on this trade-frequency contain ~10-30 trades; individual window Sharpes are noisy and should not be over-interpreted.  The distributional summary is the right unit of analysis.
-- **Single-realisation caveat.**  Synthetic sentiment seed is deterministic per ticker (`seed = sum(ord(c) for c in ticker)`).  Rerunning would produce identical results; a Monte Carlo over different seeds would require a code change in `backtest/engine._generate_synthetic_history` (out of scope).
+- **Single-corpus caveat.**  This audit replays exactly one real-news corpus collected for the production universe.  The rolling-Sharpe distribution captures within-corpus variance, not cross-corpus variance from re-ingesting different news windows or ticker mixes.
 
 ## 11. Cleanup confirmation
 

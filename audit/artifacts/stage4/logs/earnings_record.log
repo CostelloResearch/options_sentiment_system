@@ -1,0 +1,9 @@
+$ .venv/Scripts/python.exe -I audit/artifacts/stage4/yf_record_replay.py --mode record --snapshot audit/artifacts/stage4/yf_snapshot --earnings AAPL NVDA JPM XOM UNH WMT
+[earnings] AAPL: FAILED ImportError('`Import lxml` failed.  Use pip or conda to install the lxml package.')
+[earnings] NVDA: FAILED ConnectionError('Failed to perform, curl: (7) Failed to connect to finance.yahoo.com port 443 after 1 ms: Could not connect to server. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.')
+[earnings] JPM: FAILED ConnectionError('Failed to perform, curl: (7) Failed to connect to finance.yahoo.com port 443 after 1 ms: Could not connect to server. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.')
+[earnings] XOM: FAILED DNSError('Failed to perform, curl: (6) Could not resolve host: finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.')
+[earnings] UNH: FAILED DNSError('Failed to perform, curl: (6) Could not resolve host: finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.')
+[earnings] WMT: FAILED DNSError('Failed to perform, curl: (6) Could not resolve host: finance.yahoo.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.')
+
+[yf_record_replay] mode=record stats={"yf_calls": 0, "yf_network_fetches": 0, "yf_reused": 0, "blocked_finnhub": 0, "blocked_requests": 0, "blocked_curl": 0, "blocked_writes": [], "misses": []}

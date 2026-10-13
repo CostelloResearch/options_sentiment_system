@@ -1,0 +1,4 @@
+set,peak_pct_of_100k,peak_date,mean_pct_window,days_above_6pct,max_single_ticker_pct
+R3_HEAD,6.766,2025-10-21,2.608,8,2.414
+R3_WT,11.117,2025-10-21,4.468,86,7.295
+WF,6.766,2025-10-21,2.188,8,2.414

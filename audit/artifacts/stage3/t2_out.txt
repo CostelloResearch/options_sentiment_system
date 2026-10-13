@@ -1,0 +1,209 @@
+
+===== real_flat: rows=507
+signal x accepted:
+ accepted    False  True 
+signal                  
+BUY CALLS       8    295
+BUY PUTS        0    154
+SELL CALLS     27      0
+SELL PUTS      23      0
+rejection reasons (numbers masked) by signal:
+ signal                        BUY CALLS  SELL CALLS  SELL PUTS
+rejection_reason                                              
+degenerate width=#                    8           1          0
+net credit # < #% of width #          0          26         23
+kelly_reason by signal:
+ signal                BUY CALLS  BUY PUTS  SELL CALLS  SELL PUTS
+kelly_reason                                                    
+flat_sizing                 295       154           0          0
+rejected_risk_reward          8         0          27         23
+taken (accepted & contracts>0) by signal: {'BUY CALLS': 295, 'BUY PUTS': 154}
+dte_entry by strategy:
+ dte_entry          35   60
+strategy_type             
+BEAR_CALL_CREDIT   26    0
+BEAR_PUT_DEBIT      0  154
+BULL_CALL_DEBIT   295    0
+BULL_PUT_CREDIT    23    0
+short_delta by strategy (abs) describe:
+                  count   mean    std    min    25%    50%    75%    max
+strategy_type                                                          
+BEAR_PUT_DEBIT   154.0  0.206  0.075  0.003  0.180  0.233  0.255  0.335
+BULL_CALL_DEBIT  295.0  0.376  0.105  0.024  0.307  0.396  0.465  0.525
+width by ticker:
+         count  min   50%   max
+ticker                        
+AAPL     29.0  5.0   5.0  25.0
+GLD      70.0  5.0   5.0  20.0
+IWM      45.0  5.0  15.0  20.0
+JPM      48.0  5.0   5.0  20.0
+NVDA     36.0  5.0   5.0  20.0
+SPY      20.0  5.0  20.0  40.0
+TLT      71.0  0.0   5.0   5.0
+UNH      63.0  5.0   5.0  40.0
+WMT      48.0  0.0   5.0  10.0
+XOM      77.0  0.0   5.0  10.0
+S_entry by ticker (min/max):
+           min    max
+ticker              
+AAPL    202.7  280.1
+GLD     294.2  476.2
+IWM     200.4  269.3
+JPM     255.1  332.9
+NVDA    129.9  208.3
+SPY     558.7  713.9
+TLT      81.9   89.2
+UNH     255.7  370.5
+WMT      94.8  127.7
+XOM      99.4  124.5
+
+===== real_kelly: rows=507
+signal x accepted:
+ accepted    False  True 
+signal                  
+BUY CALLS       8    295
+BUY PUTS        0    154
+SELL CALLS     27      0
+SELL PUTS      23      0
+rejection reasons (numbers masked) by signal:
+ signal                        BUY CALLS  SELL CALLS  SELL PUTS
+rejection_reason                                              
+degenerate width=#                    8           1          0
+net credit # < #% of width #          0          26         23
+kelly_reason by signal:
+ signal                   BUY CALLS  BUY PUTS  SELL CALLS  SELL PUTS
+kelly_reason                                                       
+floor_over_cap                   2         6           0          0
+negative_kelly_BUY PUTS          0       133           0          0
+ok                             292        14           0          0
+portfolio_risk_cap               1         1           0          0
+rejected_risk_reward             8         0          27         23
+taken (accepted & contracts>0) by signal: {'BUY CALLS': 294, 'BUY PUTS': 20}
+dte_entry by strategy:
+ dte_entry          35   60
+strategy_type             
+BEAR_CALL_CREDIT   26    0
+BEAR_PUT_DEBIT      0  154
+BULL_CALL_DEBIT   295    0
+BULL_PUT_CREDIT    23    0
+UNH BUY PUTS rows: 21  taken: 20
+BUY PUTS taken by ticker: {'UNH': 20}
+pnl_total sum taken, all: 13906.13  excluding UNH BUY PUTS: 9911.73
+taken trades excl UNH BP: 294
+kelly_reason counts: {'ok': 306, 'negative_kelly_BUY PUTS': 133, 'rejected_risk_reward': 58, 'floor_over_cap': 8, 'portfolio_risk_cap': 2}
+
+===== demo_flat: rows=283
+signal x accepted:
+ accepted    False  True 
+signal                  
+BUY CALLS      12    119
+BUY PUTS        0     71
+SELL CALLS     51      0
+SELL PUTS      30      0
+rejection reasons (numbers masked) by signal:
+ signal                        BUY CALLS  SELL CALLS  SELL PUTS
+rejection_reason                                              
+degenerate width=#                   12           3          0
+net credit # < #% of width #          0          48         30
+kelly_reason by signal:
+ signal                BUY CALLS  BUY PUTS  SELL CALLS  SELL PUTS
+kelly_reason                                                    
+flat_sizing                 119        71           0          0
+rejected_risk_reward         12         0          51         30
+taken (accepted & contracts>0) by signal: {'BUY CALLS': 119, 'BUY PUTS': 71}
+dte_entry by strategy:
+ dte_entry          35  60
+strategy_type            
+BEAR_CALL_CREDIT   48   0
+BEAR_PUT_DEBIT      0  71
+BULL_CALL_DEBIT   119   0
+BULL_PUT_CREDIT    30   0
+
+===== demo_kelly: rows=872
+signal x accepted:
+ accepted    False  True 
+signal                  
+BUY CALLS      26    360
+BUY PUTS        0    259
+SELL CALLS    113      0
+SELL PUTS     114      0
+rejection reasons (numbers masked) by signal:
+ signal                        BUY CALLS  SELL CALLS  SELL PUTS
+rejection_reason                                              
+degenerate width=#                   26           4          7
+net credit # < #% of width #          0         109        107
+kelly_reason by signal:
+ signal                   BUY CALLS  BUY PUTS  SELL CALLS  SELL PUTS
+kelly_reason                                                       
+negative_kelly_BUY PUTS          0       259           0          0
+ok                             360         0           0          0
+rejected_risk_reward            26         0         113        114
+taken (accepted & contracts>0) by signal: {'BUY CALLS': 360}
+dte_entry by strategy:
+ dte_entry          35   60
+strategy_type             
+BEAR_CALL_CREDIT  109    0
+BEAR_PUT_DEBIT      0  259
+BULL_CALL_DEBIT   360    0
+BULL_PUT_CREDIT   107    0
+
+===== demo_other: rows=1735
+signal x accepted:
+ accepted    False  True 
+signal                  
+BUY CALLS       0    985
+BUY PUTS        0    465
+SELL CALLS    170      0
+SELL PUTS     115      0
+rejection reasons (numbers masked) by signal:
+ signal                        SELL CALLS  SELL PUTS
+rejection_reason                                   
+net credit # < #% of width #         170        115
+kelly_reason by signal:
+ signal                BUY CALLS  BUY PUTS  SELL CALLS  SELL PUTS
+kelly_reason                                                    
+bucket_full                  92        80           0          0
+floor_over_bucket            81        25           0          0
+floor_over_cap                2        18           0          0
+ok                          791       288           0          0
+portfolio_risk_cap           19        54           0          0
+rejected_risk_reward          0         0         170        115
+taken (accepted & contracts>0) by signal: {'BUY CALLS': 874, 'BUY PUTS': 331}
+dte_entry by strategy:
+ dte_entry          35  45   60
+strategy_type                 
+BEAR_CALL_CREDIT  170   0    0
+BEAR_PUT_DEBIT      0  93  372
+BULL_CALL_DEBIT   985   0    0
+BULL_PUT_CREDIT   115   0    0
+
+===== archive_5t: rows=1505
+signal x accepted:
+ accepted    False  True 
+signal                  
+BUY CALLS       0    364
+BUY PUTS        0    525
+SELL CALLS    189      0
+SELL PUTS     427      0
+rejection reasons (numbers masked) by signal:
+ signal                        SELL CALLS  SELL PUTS
+rejection_reason                                   
+net credit # < #% of width #         189        427
+kelly_reason by signal:
+ signal                BUY CALLS  BUY PUTS  SELL CALLS  SELL PUTS
+kelly_reason                                                    
+bucket_full                  15        86           0          0
+flat_sizing                  52        75           0          0
+floor_over_bucket            15        17           0          0
+floor_over_cap                8        36           0          0
+ok                          259       187           0          0
+portfolio_risk_cap           15       124           0          0
+rejected_risk_reward          0         0         189        427
+taken (accepted & contracts>0) by signal: {'BUY CALLS': 334, 'BUY PUTS': 315}
+dte_entry by strategy:
+ dte_entry          35  45   60
+strategy_type                 
+BEAR_CALL_CREDIT  189   0    0
+BEAR_PUT_DEBIT      0  75  450
+BULL_CALL_DEBIT   364   0    0
+BULL_PUT_CREDIT   427   0    0

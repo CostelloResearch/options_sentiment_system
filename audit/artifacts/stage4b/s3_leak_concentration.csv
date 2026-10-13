@@ -1,0 +1,13 @@
+set,bucket,n,total_pnl,mean_pnl,win_rate
+flat_BUY_CALLS,<50%,206,3909.03,18.98,0.519
+flat_BUY_CALLS,>=50%,19,282.07,14.85,0.579
+flat_BUY_CALLS,no_article_record,1,43.96,43.96,1.0
+flat_BUY_CALLS,none,72,3974.78,55.21,0.681
+flat_BUY_PUTS,<50%,104,-18498.34,-177.87,0.24
+flat_BUY_PUTS,>=50%,18,-429.89,-23.88,0.333
+flat_BUY_PUTS,no_article_record,1,-1319.66,-1319.66,0.0
+flat_BUY_PUTS,none,31,-7705.46,-248.56,0.226
+WF_BUY_CALLS,<50%,172,4702.71,27.34,0.529
+WF_BUY_CALLS,>=50%,18,61.38,3.41,0.556
+WF_BUY_CALLS,no_article_record,1,43.96,43.96,1.0
+WF_BUY_CALLS,none,58,3532.82,60.91,0.672

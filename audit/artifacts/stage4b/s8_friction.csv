@@ -1,0 +1,5 @@
+set,trades,days_held_0_n,days_held_0_pnl,net_pnl,entry_friction_$,gross_pnl_pre_friction,entry_friction_pct_of_gross,exit_friction_$,pnl_with_exit_friction,min_days_held
+flat,452,0,0.0,-19743.51,7327.58,-12415.93,59.0,8456.42,-28199.93,2
+R3_HEAD,298,0,0.0,10216.57,5116.87,15333.44,33.4,6814.3,3402.27,2
+R3_WT,315,0,0.0,13183.91,5754.86,18938.77,30.4,7865.2,5318.71,2
+WF,249,0,0.0,8340.87,4522.58,12863.45,35.2,6048.81,2292.06,2

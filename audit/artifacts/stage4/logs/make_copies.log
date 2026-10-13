@@ -1,0 +1,9 @@
+wt_src source files compared byte-for-byte: 79, mismatches: 0
+head_src data/raw files: 1693 compared, mismatches: 0
+wt_src data/raw files: 1693 compared, mismatches: 0
+head_src PROJECT_STATE.md == git show HEAD:PROJECT_STATE.md: False; wt_src differs from HEAD: True
+head_src backtest/engine.py == git show HEAD:backtest/engine.py: False; wt_src differs from HEAD: True
+head_src scripts/audit_oos_split.py == git show HEAD:scripts/audit_oos_split.py: False; wt_src differs from HEAD: True
+head_src scripts/audit_walkforward.py == git show HEAD:scripts/audit_walkforward.py: False; wt_src differs from HEAD: True
+head_src scripts/sector_decay.py == git show HEAD:scripts/sector_decay.py: False; wt_src differs from HEAD: True
+head_src signals/position_sizer.py == git show HEAD:signals/position_sizer.py: False; wt_src differs from HEAD: True

@@ -1,0 +1,5 @@
+set,trades,pnl,commission_$,pnl_after_comm,comm_pct_of_pnl,exit_friction_$,pnl_after_comm_and_exit_friction,comm_plus_friction_pct_of_pnl
+flat,452,-19743.51,1248.0,-20991.51,6.3,8456.42,-29447.93,49.2
+R3_HEAD,298,10216.57,904.8,9311.77,8.9,6814.3,2497.47,75.6
+R3_WT,315,13183.91,949.0,12234.91,7.2,7865.2,4369.71,66.9
+WF,249,8340.87,756.6,7584.27,9.1,6048.81,1535.46,81.6

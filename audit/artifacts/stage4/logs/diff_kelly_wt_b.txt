@@ -1,0 +1,59 @@
+suffix='_kelly' orig_rows=507 repro_rows=507 both=507 orig_only=0 repro_only=0
+identical (signal, strategy, strikes, accepted): 322; differing: 185
+signal differs: 0; strategy differs: 8; strikes differ: 185; accepted differs: 7; exit_reason differs: 43; sentiment differs: 0
+S_entry repro/orig ratio by ticker (min, max):
+             min       max
+ticker                    
+AAPL    0.998184  0.998257
+GLD     1.000000  1.000000
+IWM     0.994998  0.995058
+JPM     0.990546  0.990597
+NVDA    0.997689  0.997745
+SPY     0.994944  0.994973
+TLT     0.980607  0.980790
+UNH     0.988215  0.988262
+WMT     0.995635  0.995789
+XOM     0.986786  0.986951
+iv_rank abs diff by ticker (max): {'AAPL': 0.0, 'GLD': 0.0, 'IWM': 0.0, 'JPM': 0.0, 'NVDA': 0.0, 'SPY': 0.0, 'TLT': 0.0001, 'UNH': 0.0, 'WMT': 0.0, 'XOM': 0.0}
+exit_reason transitions (orig -> repro), where different:
+exit_reason_o         exit_reason_r       
+profit_target         time_stop               10
+expiration            profit_target            8
+time_stop             profit_target            8
+rejected_risk_reward  time_stop                5
+expiration            time_stop                3
+time_stop             rejected_by_kelly        2
+stop_loss             time_stop                2
+time_stop             stop_loss                1
+                      rejected_risk_reward     1
+profit_target         rejected_by_kelly        1
+rejected_by_kelly     time_stop                1
+profit_target         rejected_risk_reward     1
+accepted transitions: ticker entry_date  signal_o  accepted_o  accepted_r rejection_reason_o rejection_reason_r
+   TLT 2025-07-07 BUY CALLS        True       False                NaN degenerate width=0
+   TLT 2025-10-13 BUY CALLS       False        True degenerate width=0                NaN
+   TLT 2025-11-11 BUY CALLS       False        True degenerate width=0                NaN
+   TLT 2025-11-26 BUY CALLS       False        True degenerate width=0                NaN
+   TLT 2026-02-17 BUY CALLS       False        True degenerate width=0                NaN
+   WMT 2025-07-01 BUY CALLS       False        True degenerate width=0                NaN
+   XOM 2025-06-03 BUY CALLS        True       False                NaN degenerate width=0
+P&L orig=13906.13 repro=13183.91 delta=-722.22
+P&L delta by bucket:
+                      count      sum
+bucket                             
+accept/reject flip       7  -209.07
+exit-reason change      17   -36.43
+same structure+exit    305   995.57
+strike change          178 -1472.29
+taken orig: 314 taken repro: 315
+kelly_reason transitions:
+ kelly_reason_o        kelly_reason_r      
+rejected_risk_reward  ok                      5
+floor_over_cap        portfolio_risk_cap      3
+                      ok                      3
+ok                    rejected_risk_reward    2
+                      floor_over_cap          1
+portfolio_risk_cap    floor_over_cap          1
+contracts differ: 58
+orig 'expiration' exits: 11  with exit_date before nominal expiration: 11  their P&L delta: 1027.03
+days_to_earnings: orig 999 share 0.406  repro 999 share 1.0

@@ -1,0 +1,158 @@
+AAPL: sentiment rows in window 222, joined trading days 154, weekend/holiday rows dropped 68
+NVDA: sentiment rows in window 142, joined trading days 100, weekend/holiday rows dropped 42
+JPM: sentiment rows in window 329, joined trading days 228, weekend/holiday rows dropped 101
+XOM: sentiment rows in window 338, joined trading days 243, weekend/holiday rows dropped 95
+UNH: sentiment rows in window 334, joined trading days 241, weekend/holiday rows dropped 93
+WMT: sentiment rows in window 346, joined trading days 237, weekend/holiday rows dropped 109
+IWM: sentiment rows in window 360, joined trading days 247, weekend/holiday rows dropped 113
+GLD: sentiment rows in window 335, joined trading days 246, weekend/holiday rows dropped 89
+TLT: sentiment rows in window 323, joined trading days 248, weekend/holiday rows dropped 75
+SPY: sentiment rows in window 259, joined trading days 183, weekend/holiday rows dropped 76
+  stat  calendar_days_held  trading_days_held
+     n              298.00             298.00
+  mean               12.39               8.45
+median               14.00               9.00
+   p25               12.00               8.00
+   p75               14.00              10.00
+   min                2.00               2.00
+   max               17.00              10.00
+median trading-day hold: 9
+forward obs dropped past data end: {1: 0, 5: 0, 9: 0, 10: 0}
+leak-free ticker-days: 328 of 2127 ; ticker-days with no chunk-article record (excluded from leak-free): 15
+           variant  h regime  bucket  n_ticker_days  n_dates     mean   median  hit_rate
+    sentiment_full  1 low_rv bearish            154      109  0.00234  0.00252   0.59740
+    sentiment_full  1 low_rv bullish            303      162  0.00087  0.00216   0.56766
+    sentiment_full  1 low_rv neutral           1000      234  0.00084  0.00057   0.52400
+    sentiment_full  1 low_rv     ALL           1457      238  0.00101  0.00102   0.54084
+    sentiment_full  5 low_rv bearish            154      109  0.00376  0.00501   0.58442
+    sentiment_full  5 low_rv bullish            303      162  0.00897  0.00800   0.62706
+    sentiment_full  5 low_rv neutral           1000      234  0.00613  0.00523   0.58300
+    sentiment_full  5 low_rv     ALL           1457      238  0.00647  0.00569   0.59231
+    sentiment_full  9 low_rv bearish            154      109  0.00535  0.00462   0.57143
+    sentiment_full  9 low_rv bullish            303      162  0.01788  0.01327   0.63366
+    sentiment_full  9 low_rv neutral           1000      234  0.01138  0.00833   0.61600
+    sentiment_full  9 low_rv     ALL           1457      238  0.01209  0.00839   0.61496
+    sentiment_full 10 low_rv bearish            154      109  0.00358  0.00127   0.53896
+    sentiment_full 10 low_rv bullish            303      162  0.01890  0.01579   0.67327
+    sentiment_full 10 low_rv neutral           1000      234  0.01284  0.01008   0.62100
+    sentiment_full 10 low_rv     ALL           1457      238  0.01312  0.00956   0.62320
+sentiment_leakfree  1 low_rv bearish             31       28  0.00119  0.00185   0.58065
+sentiment_leakfree  1 low_rv bullish             74       61  0.00273  0.00225   0.63514
+sentiment_leakfree  1 low_rv neutral            105       83  0.00348  0.00223   0.53333
+sentiment_leakfree  1 low_rv     ALL            210      136  0.00287  0.00214   0.57619
+sentiment_leakfree  5 low_rv bearish             31       28  0.00434  0.00494   0.54839
+sentiment_leakfree  5 low_rv bullish             74       61  0.01803  0.01625   0.74324
+sentiment_leakfree  5 low_rv neutral            105       83  0.00987  0.00897   0.61905
+sentiment_leakfree  5 low_rv     ALL            210      136  0.01193  0.00958   0.65238
+sentiment_leakfree  9 low_rv bearish             31       28 -0.00234  0.00217   0.51613
+sentiment_leakfree  9 low_rv bullish             74       61  0.02594  0.02514   0.70270
+sentiment_leakfree  9 low_rv neutral            105       83  0.02050  0.01342   0.63810
+sentiment_leakfree  9 low_rv     ALL            210      136  0.01904  0.01299   0.64286
+sentiment_leakfree 10 low_rv bearish             31       28 -0.00643 -0.00080   0.48387
+sentiment_leakfree 10 low_rv bullish             74       61  0.02694  0.02496   0.74324
+sentiment_leakfree 10 low_rv neutral            105       83  0.02164  0.01559   0.64762
+sentiment_leakfree 10 low_rv     ALL            210      136  0.01936  0.01499   0.65714
+    momentum5_full  1 low_rv   down5            570      206  0.00118  0.00132   0.54912
+    momentum5_full  1 low_rv     up5            887      224  0.00090  0.00091   0.53551
+    momentum5_full  1 low_rv     ALL           1457      238  0.00101  0.00102   0.54084
+    momentum5_full  5 low_rv   down5            570      206  0.00764  0.00693   0.62632
+    momentum5_full  5 low_rv     up5            887      224  0.00571  0.00431   0.57046
+    momentum5_full  5 low_rv     ALL           1457      238  0.00647  0.00569   0.59231
+    momentum5_full  9 low_rv   down5            570      206  0.01433  0.01078   0.64035
+    momentum5_full  9 low_rv     up5            887      224  0.01065  0.00727   0.59865
+    momentum5_full  9 low_rv     ALL           1457      238  0.01209  0.00839   0.61496
+    momentum5_full 10 low_rv   down5            570      206  0.01492  0.01200   0.63158
+    momentum5_full 10 low_rv     up5            887      224  0.01197  0.00843   0.61781
+    momentum5_full 10 low_rv     ALL           1457      238  0.01312  0.00956   0.62320
+           variant  h  scope             contrast  n_a  n_b      est    ci_lo   ci_hi excludes_zero
+    sentiment_full  1 POOLED    bullish - neutral  303 1000  0.00003 -0.00216 0.00215         False
+    sentiment_full  1 POOLED bullish - all_low_rv  303 1457 -0.00013 -0.00187 0.00154         False
+    sentiment_full  5 POOLED    bullish - neutral  303 1000  0.00284 -0.00163 0.00715         False
+    sentiment_full  5 POOLED bullish - all_low_rv  303 1457  0.00250 -0.00093 0.00584         False
+    sentiment_full  9 POOLED    bullish - neutral  303 1000  0.00651  0.00034 0.01279          True
+    sentiment_full  9 POOLED bullish - all_low_rv  303 1457  0.00579  0.00083 0.01103          True
+    sentiment_full 10 POOLED    bullish - neutral  303 1000  0.00605 -0.00104 0.01287         False
+    sentiment_full 10 POOLED bullish - all_low_rv  303 1457  0.00577 -0.00008 0.01168         False
+sentiment_leakfree  1 POOLED    bullish - neutral   74  105 -0.00075 -0.00394 0.00225         False
+sentiment_leakfree  1 POOLED bullish - all_low_rv   74  210 -0.00015 -0.00200 0.00162         False
+sentiment_leakfree  5 POOLED    bullish - neutral   74  105  0.00815 -0.00042 0.01757         False
+sentiment_leakfree  5 POOLED bullish - all_low_rv   74  210  0.00610  0.00099 0.01165          True
+sentiment_leakfree  9 POOLED    bullish - neutral   74  105  0.00544 -0.01029 0.01926         False
+sentiment_leakfree  9 POOLED bullish - all_low_rv   74  210  0.00689 -0.00215 0.01559         False
+sentiment_leakfree 10 POOLED    bullish - neutral   74  105  0.00531 -0.01145 0.01883         False
+sentiment_leakfree 10 POOLED bullish - all_low_rv   74  210  0.00758 -0.00289 0.01715         False
+    momentum5_full  1 POOLED          up5 - down5  887  570 -0.00028 -0.00181 0.00116         False
+    momentum5_full  1 POOLED     up5 - all_low_rv  887 1457 -0.00011 -0.00071 0.00045         False
+    momentum5_full  5 POOLED          up5 - down5  887  570 -0.00192 -0.00612 0.00264         False
+    momentum5_full  5 POOLED     up5 - all_low_rv  887 1457 -0.00075 -0.00244 0.00101         False
+    momentum5_full  9 POOLED          up5 - down5  887  570 -0.00368 -0.01251 0.00492         False
+    momentum5_full  9 POOLED     up5 - all_low_rv  887 1457 -0.00144 -0.00479 0.00194         False
+    momentum5_full 10 POOLED          up5 - down5  887  570 -0.00296 -0.01256 0.00667         False
+    momentum5_full 10 POOLED     up5 - all_low_rv  887 1457 -0.00116 -0.00491 0.00257         False
+       variant  h scope             contrast  n_a  n_b     est   ci_lo   ci_hi excludes_zero
+sentiment_full  1  AAPL bullish - all_low_rv   23  131 -0.0014 -0.0068  0.0049         False
+sentiment_full  1  NVDA bullish - all_low_rv   34   92  0.0031 -0.0023  0.0088         False
+sentiment_full  1   JPM bullish - all_low_rv   45  175 -0.0023 -0.0055  0.0007         False
+sentiment_full  1   XOM bullish - all_low_rv   68  140  0.0016 -0.0005  0.0038         False
+sentiment_full  1   UNH bullish - all_low_rv   37  138 -0.0020 -0.0123  0.0058         False
+sentiment_full  1   WMT bullish - all_low_rv   44  138 -0.0030 -0.0061  0.0002         False
+sentiment_full  1   IWM bullish - all_low_rv    4  208  0.0032 -0.0180  0.0173         False
+sentiment_full  1   GLD bullish - all_low_rv   31   84 -0.0016 -0.0047  0.0017         False
+sentiment_full  1   TLT bullish - all_low_rv   10  185 -0.0003 -0.0026  0.0022         False
+sentiment_full  1   SPY bullish - all_low_rv    7  166  0.0072  0.0021  0.0159          True
+sentiment_full  5  AAPL bullish - all_low_rv   23  131  0.0074 -0.0063  0.0187         False
+sentiment_full  5  NVDA bullish - all_low_rv   34   92  0.0018 -0.0073  0.0135         False
+sentiment_full  5   JPM bullish - all_low_rv   45  175 -0.0077 -0.0145 -0.0023          True
+sentiment_full  5   XOM bullish - all_low_rv   68  140  0.0033 -0.0009  0.0076         False
+sentiment_full  5   UNH bullish - all_low_rv   37  138  0.0061 -0.0105  0.0217         False
+sentiment_full  5   WMT bullish - all_low_rv   44  138 -0.0046 -0.0116  0.0032         False
+sentiment_full  5   IWM bullish - all_low_rv    4  208  0.0156 -0.0276  0.0367         False
+sentiment_full  5   GLD bullish - all_low_rv   31   84 -0.0043 -0.0123  0.0029         False
+sentiment_full  5   TLT bullish - all_low_rv   10  185  0.0011 -0.0055  0.0081         False
+sentiment_full  5   SPY bullish - all_low_rv    7  166  0.0122 -0.0040  0.0274         False
+sentiment_full  9  AAPL bullish - all_low_rv   23  131  0.0102 -0.0076  0.0246         False
+sentiment_full  9  NVDA bullish - all_low_rv   34   92 -0.0023 -0.0126  0.0150         False
+sentiment_full  9   JPM bullish - all_low_rv   45  175 -0.0101 -0.0213 -0.0028          True
+sentiment_full  9   XOM bullish - all_low_rv   68  140  0.0007 -0.0049  0.0060         False
+sentiment_full  9   UNH bullish - all_low_rv   37  138  0.0263 -0.0016  0.0530         False
+sentiment_full  9   WMT bullish - all_low_rv   44  138 -0.0038 -0.0151  0.0080         False
+sentiment_full  9   IWM bullish - all_low_rv    4  208  0.0149 -0.0427  0.0436         False
+sentiment_full  9   GLD bullish - all_low_rv   31   84 -0.0014 -0.0114  0.0065         False
+sentiment_full  9   TLT bullish - all_low_rv   10  185 -0.0023 -0.0103  0.0045         False
+sentiment_full  9   SPY bullish - all_low_rv    7  166  0.0205 -0.0046  0.0470         False
+sentiment_full 10  AAPL bullish - all_low_rv   23  131  0.0101 -0.0115  0.0271         False
+sentiment_full 10  NVDA bullish - all_low_rv   34   92 -0.0014 -0.0119  0.0171         False
+sentiment_full 10   JPM bullish - all_low_rv   45  175 -0.0105 -0.0230 -0.0026          True
+sentiment_full 10   XOM bullish - all_low_rv   68  140 -0.0019 -0.0084  0.0043         False
+sentiment_full 10   UNH bullish - all_low_rv   37  138  0.0289 -0.0016  0.0582         False
+sentiment_full 10   WMT bullish - all_low_rv   44  138 -0.0059 -0.0187  0.0080         False
+sentiment_full 10   IWM bullish - all_low_rv    4  208  0.0061 -0.0599  0.0385         False
+sentiment_full 10   GLD bullish - all_low_rv   31   84  0.0006 -0.0085  0.0080         False
+sentiment_full 10   TLT bullish - all_low_rv   10  185  0.0007 -0.0080  0.0087         False
+sentiment_full 10   SPY bullish - all_low_rv    7  166  0.0236 -0.0013  0.0543         False
+   scope     vs    n  pearson  spearman
+all_days trail1 2127   0.2276    0.2286
+all_days trail5 2127   0.1996    0.2069
+all_days   fwd1 2127   0.0029    0.0073
+all_days   fwd5 2127   0.0309    0.0192
+all_days   fwd9 2127   0.0601    0.0509
+all_days  fwd10 2127   0.0719    0.0637
+  low_rv trail1 1457   0.2351    0.2163
+  low_rv trail5 1457   0.2108    0.2219
+  low_rv   fwd1 1457  -0.0111   -0.0053
+  low_rv   fwd5 1457   0.0485    0.0493
+  low_rv   fwd9 1457   0.1000    0.0871
+  low_rv  fwd10 1457   0.1141    0.1005
+per-ticker n ticker-days / low-rv / low-rv bullish:
+          n  low  low_bull
+ticker                    
+AAPL    154  131        23
+GLD     246   84        31
+IWM     247  208         4
+JPM     228  175        45
+NVDA    100   92        34
+SPY     183  166         7
+TLT     248  185        10
+UNH     241  138        37
+WMT     237  138        44
+XOM     243  140        68

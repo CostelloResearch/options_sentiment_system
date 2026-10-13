@@ -1,0 +1,49 @@
+     logs           set  trades  total_pnl  sharpe_repo_all_rows  sharpe_repo_taken_only  sharpe_daily_exit_series  daily_ci95_lo  daily_ci95_hi  analytic_ci_lo  analytic_ci_hi  dd_repo_order  dd_date_ordered_daily
+canonical          flat     452  -19743.51                -0.920                  -0.975                    -1.933         -3.825          0.290          -3.813          -0.054      -28819.76              -25056.86
+canonical       R3_HEAD     298   10216.57                 1.281                   1.689                     3.082          0.740          4.975           1.115           5.049       -1396.04               -2577.84
+canonical         R3_WT     315   13183.91                 0.858                   1.093                     2.353          0.153          4.148           0.394           4.312       -5362.46               -4585.18
+canonical            WF     249    8340.87                 1.274                   1.640                     2.626          0.112          4.495           0.664           4.587       -2106.65               -2577.82
+ original          flat     449  -18983.30                -0.899                  -0.956                    -1.835         -3.704          0.567          -3.817           0.147      -27048.18              -24409.61
+ original R3_HEAD_proxy     294    9911.73                 1.198                   1.588                     3.176          0.841          5.478           1.185           5.168       -1496.97               -2659.88
+ original         R3_WT     314   13906.13                 0.908                   1.159                     2.548          0.247          4.629           0.564           4.532       -5175.84               -4012.36
+ original            WF     246    7786.22                 1.137                   1.476                     2.622          0.235          4.907           0.633           4.611       -1921.94               -2659.87
+     logs           set  mean_per_trade  std_per_trade  t_naive  n_eff  t_eff  return_on_capital  n_days
+canonical          flat         -43.680        317.923   -2.921 90.391 -1.306             -1.974     276
+canonical       R3_HEAD          34.284        144.071    4.108 85.755  2.204              0.102     255
+canonical         R3_WT          41.854        271.763    2.733 83.437  1.407              0.132     255
+canonical            WF          33.497        144.997    3.645 71.076  1.948              0.083     255
+ original          flat         -42.279        313.930   -2.854 89.618 -1.275             -1.898     248
+ original R3_HEAD_proxy          33.713        150.687    3.836 83.437  2.044              0.099     249
+ original         R3_WT          44.287        271.159    2.894 81.120  1.471              0.139     249
+ original            WF          31.651        152.287    3.260 67.986  1.714              0.078     248
+         trades  total_pnl  sharpe_repo_all_rows  sharpe_repo_taken_only  sharpe_daily_exit_series  daily_ci95_lo  daily_ci95_hi  analytic_ci_lo  analytic_ci_hi  dd_repo_order  dd_date_ordered_daily
+set                                                                                                                                                                                                   
+flat          3    -760.21                -0.021                  -0.019                    -0.099         -0.121         -0.277           0.004          -0.201       -1771.58                -647.25
+R3_HEAD       4     304.84                 0.083                   0.101                    -0.094         -0.101         -0.503          -0.070          -0.119         100.93                  82.04
+R3_WT         1    -722.22                -0.050                  -0.066                    -0.195         -0.094         -0.481          -0.170          -0.221        -186.62                -572.82
+WF            3     554.65                 0.137                   0.165                     0.003         -0.123         -0.412           0.031          -0.024        -184.71                  82.05
+                     0        1       2      3
+set               flat  R3_HEAD   R3_WT     WF
+conc_AAPL        1.101     0.71    0.71  0.552
+conc_GLD         1.464    0.903   0.903  0.766
+conc_IWM         3.323    0.125   0.125  0.069
+conc_JPM         1.907    1.681   1.681  1.367
+conc_NVDA        1.222    1.113   1.113  0.879
+conc_SPY         0.863    0.218   0.218  0.181
+conc_TLT         5.399    0.306   0.306  0.306
+conc_UNH         2.718    1.181     2.5  1.181
+conc_WMT         1.879    1.488   1.488  1.109
+conc_XOM         2.968    2.315   2.315  1.964
+conc_portfolio  22.843    10.04  11.359  8.375
+trades             452      298     315    249
+indep_in_time      117      111     108     92
+traded_tickers      10       10      10     10
+N_eff_traded     7.726    7.726   7.726  7.726
+n_eff             90.4     85.8    83.4   71.1
+                                             window  n_days  N_eff_10  mean_pairwise_corr
+                      2025-05-08..2026-05-04 (full)     248     7.726               0.126
+60 trading days to 2026-04-24 (PROJECT_STATE basis)      60     6.666                 NaN
+    set  peak_pct_of_100k  peak_date  mean_pct_window  days_above_6pct  max_single_ticker_pct
+R3_HEAD             6.766 2025-10-21            2.608                8                  2.414
+  R3_WT            11.117 2025-10-21            4.468               86                  7.295
+     WF             6.766 2025-10-21            2.188                8                  2.414

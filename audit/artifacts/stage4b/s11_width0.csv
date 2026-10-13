@@ -1,0 +1,7 @@
+logs,ticker,n_width0,signals
+canonical,TLT,2,{'BUY CALLS': 2}
+canonical,WMT,1,{'BUY CALLS': 1}
+canonical,XOM,2,{'BUY CALLS': 2}
+original,TLT,6,"{'BUY CALLS': 5, 'SELL CALLS': 1}"
+original,WMT,2,{'BUY CALLS': 2}
+original,XOM,1,{'BUY CALLS': 1}

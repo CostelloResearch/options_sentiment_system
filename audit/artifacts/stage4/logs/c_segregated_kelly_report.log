@@ -1,0 +1,146 @@
+$ .venv/Scripts/python.exe -I audit/artifacts/stage4/yf_record_replay.py --mode replay --copy audit/artifacts/stage4/head_src --snapshot audit/artifacts/stage4/yf_snapshot --script scripts/segregated_kelly_report.py -- --real --skip-kelly
+[yf_record_replay] mode=replay copy=C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src script=scripts/segregated_kelly_report.py args=['--real', '--skip-kelly']
+[yf_record_replay] start_utc=2026-10-10T19:49:40.594659+00:00
+========================================================================
+STEP 1: Flat-sizing backtest (baseline)
+========================================================================
+
+[engine] Running spread backtest for AAPL (REAL mode, flat sizing)...
+[engine] Downloading 5y of AAPL price history...
+[engine] Loaded 222 days of real sentiment data.
+[engine] Simulating spreads over 154 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for AAPL: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 29 signal days recorded (27 accepted, 2 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_AAPL.csv
+
+[engine] Running spread backtest for NVDA (REAL mode, flat sizing)...
+[engine] Downloading 5y of NVDA price history...
+[engine] Loaded 142 days of real sentiment data.
+[engine] Simulating spreads over 100 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for NVDA: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 36 signal days recorded (35 accepted, 1 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_NVDA.csv
+
+[engine] Running spread backtest for JPM (REAL mode, flat sizing)...
+[engine] Downloading 5y of JPM price history...
+[engine] Loaded 329 days of real sentiment data.
+[engine] Simulating spreads over 228 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for JPM: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 48 signal days recorded (47 accepted, 1 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_JPM.csv
+
+[engine] Running spread backtest for XOM (REAL mode, flat sizing)...
+[engine] Downloading 5y of XOM price history...
+[engine] Loaded 338 days of real sentiment data.
+[engine] Simulating spreads over 243 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for XOM: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 77 signal days recorded (73 accepted, 4 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_XOM.csv
+
+[engine] Running spread backtest for UNH (REAL mode, flat sizing)...
+[engine] Downloading 5y of UNH price history...
+[engine] Loaded 334 days of real sentiment data.
+[engine] Simulating spreads over 241 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for UNH: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 63 signal days recorded (58 accepted, 5 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_UNH.csv
+
+[engine] Running spread backtest for WMT (REAL mode, flat sizing)...
+[engine] Downloading 5y of WMT price history...
+[engine] Loaded 346 days of real sentiment data.
+[engine] Simulating spreads over 237 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for WMT: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 48 signal days recorded (47 accepted, 1 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_WMT.csv
+
+[engine] Running spread backtest for IWM (REAL mode, flat sizing)...
+[engine] Downloading 5y of IWM price history...
+[engine] Loaded 361 days of real sentiment data.
+[engine] Simulating spreads over 247 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for IWM: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 45 signal days recorded (41 accepted, 4 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_IWM.csv
+
+[engine] Running spread backtest for GLD (REAL mode, flat sizing)...
+[engine] Downloading 5y of GLD price history...
+[engine] Loaded 336 days of real sentiment data.
+[engine] Simulating spreads over 246 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for GLD: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 70 signal days recorded (39 accepted, 31 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_GLD.csv
+
+[engine] Running spread backtest for TLT (REAL mode, flat sizing)...
+[engine] Downloading 5y of TLT price history...
+[engine] Loaded 323 days of real sentiment data.
+[engine] Simulating spreads over 248 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for TLT: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 71 signal days recorded (67 accepted, 4 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_TLT.csv
+
+[engine] Running spread backtest for SPY (REAL mode, flat sizing)...
+[engine] Downloading 5y of SPY price history...
+[engine] Loaded 260 days of real sentiment data.
+[engine] Simulating spreads over 183 days...
+[engine] no confidence model on disk; using legacy formula
+[earnings_filter] WARNING: could not fetch earnings for SPY: [guard] finnhub.earnings_calendar blocked (no network to finnhub.io)
+[engine] 20 signal days recorded (18 accepted, 2 rejected).
+[engine] Saved -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\data\raw\backtest_SPY.csv
+
+========================================================================
+STEP 2: Rebuild Kelly stats from flat corpus
+========================================================================
+
+signal             n     WR   avg_W   avg_L      W       f*   0.25f* tradable
+------------------------------------------------------------------------
+BUY CALLS        298 56.38%   0.533   0.392   1.36  +0.2431  +0.0608     True
+BUY PUTS         154 24.68%   0.516   0.685   0.75  -0.7536  +0.0000    False
+[report] Saved quintile edges: [0.1814, 0.2959, 0.3915, 0.4948]
+
+========================================================================
+STEP 4: Report
+========================================================================
+
+[headline]
+           label  n_signals  n_trades  total_pnl  avg_trade_pnl  win_rate  sharpe    max_dd  profit_factor
+            flat        507       452  -19743.51         -38.94    0.4063 -0.9201 -28819.76         0.6484
+kelly_segregated        507       314   13906.13          27.43    0.3590  0.9084  -5175.84         1.6878
+
+[per-bucket P&L contribution]
+    signal  n_signals  n_accepted  total_pnl  avg_trade_pnl  win_rate   max_dd
+ BUY CALLS        303         295    9911.73          32.71    0.5644 -1496.97
+  BUY PUTS        154         154    3994.40          25.94    0.0714 -4575.19
+SELL CALLS         27           0       0.00           0.00    0.0000     0.00
+ SELL PUTS         23           0       0.00           0.00    0.0000     0.00
+
+[bucket utilization at entry]
+   signal  bucket_cap_$  n_evaluations  mean_utilization  peak_utilization  n_bucket_full  n_floor_over_cap  pct_blocked
+BUY CALLS        6000.0            295            0.1423            1.1300              0                 0          0.0
+ BUY PUTS        6000.0             21            0.5603            1.0037              0                 0          0.0
+
+[trade count per strategy]
+   signal  flat_trades  kelly_trades  delta
+BUY CALLS          298           295     -3
+ BUY PUTS          154           154      0
+
+[confidence quintile P&L after Kelly sizing]
+quintile  n  mean_conf  win_rate  avg_trade_pnl  total_pnl
+      Q1 90     0.1187    0.3444          19.02    1712.24
+      Q2 90     0.2423    0.4556          67.70    6092.79
+      Q3 89     0.3438    0.4494          30.12    2680.90
+      Q4 90     0.4326    0.3333           2.04     183.91
+      Q5 90     0.5633    0.4444          35.96    3236.29
+
+[report] -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\outputs\segregated_kelly_report.md
+[yf_record_replay] end_utc=2026-10-10T19:49:44.155094+00:00 rc=0
+
+[yf_record_replay] mode=replay stats={"yf_calls": 10, "yf_network_fetches": 0, "yf_reused": 0, "blocked_finnhub": 10, "blocked_requests": 0, "blocked_curl": 0, "blocked_writes": [], "misses": []}
+[yf_record_replay] config module file: C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\head_src\scripts\..\config.py

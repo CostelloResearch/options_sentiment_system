@@ -1,0 +1,5 @@
+set,pnl_after_costs,sharpe_daily,boot_lo,boot_hi,boot_excludes_zero,analytic_lo,analytic_hi,win_rate
+flat,-29447.93,-2.935,-4.799,-0.836,True,-4.824,-1.046,0.425
+R3_HEAD,2497.47,0.84,-1.778,3.056,False,-1.11,2.79,0.52
+R3_WT,4369.71,0.842,-1.489,2.94,False,-1.108,2.792,0.524
+WF,1535.46,0.541,-2.164,2.696,False,-1.408,2.49,0.518

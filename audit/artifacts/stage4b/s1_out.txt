@@ -1,0 +1,51 @@
+                                               check             got        expected  pass
+                          3a WF canonical trades/pnl   249 / 8340.87   249 / 8340.87  True
+                       3a WF canonical warmup/refits       102 / 134  102 / (report)  True
+                           3b WF original trades/pnl   246 / 7786.22   246 / 7786.22  True
+                        3b WF original warmup/refits        99 / 134        99 / 134  True
+                                   3c flat taken/pnl 452 / -19743.51 452 / -19743.51  True
+                                3c R3 HEAD taken/pnl  298 / 10216.57  298 / 10216.57  True
+                                  3c R3 WT taken/pnl  315 / 13183.91  315 / 13183.91  True
+3d RV rank (recomputed rounded to 4dp == logged 4dp)   507/507 match             all  True
+set               R3_HEAD   R3_WT      WF     flat
+signal    ticker                                  
+BUY CALLS AAPL      420.0   420.0   744.0    554.0
+          GLD      2390.0  2390.0  2516.0   2390.0
+          IWM       258.0   258.0   -53.0    258.0
+          JPM      -836.0  -836.0  -813.0   -836.0
+          NVDA     1114.0  1114.0    30.0   1114.0
+          SPY       443.0   443.0   305.0    443.0
+          TLT      -319.0  -319.0  -319.0   -240.0
+          UNH       372.0   454.0   372.0    372.0
+          WMT      1330.0  1330.0  1426.0    708.0
+          XOM      5043.0  5043.0  4133.0   3446.0
+BUY PUTS  AAPL        NaN     NaN     NaN  -1220.0
+          GLD         NaN     NaN     NaN  -3736.0
+          IWM         NaN     NaN     NaN -12566.0
+          JPM         NaN     NaN     NaN   -991.0
+          NVDA        NaN     NaN     NaN    -47.0
+          SPY         NaN     NaN     NaN  -7801.0
+          TLT         NaN     NaN     NaN  -2942.0
+          UNH         NaN  2885.0     NaN   3560.0
+          WMT         NaN     NaN     NaN   -856.0
+          XOM         NaN     NaN     NaN  -1354.0
+                     n       pnl
+set     signal                  
+R3_HEAD BUY CALLS  298  10216.57
+R3_WT   BUY CALLS  296  10298.65
+        BUY PUTS    19   2885.26
+WF      BUY CALLS  249   8340.87
+flat    BUY CALLS  298   8209.84
+        BUY PUTS   154 -27953.35
+                            item     pnl
+       R3_WT minus R3_HEAD total 2967.34
+        trades only in WT (n=19) 2885.26
+       trades only in HEAD (n=2)   82.08
+common trades P&L change (n=296)    0.00
+only_w signals: {'BUY PUTS': 19} only_h: [('UNH', Timestamp('2025-12-09 00:00:00')), ('UNH', Timestamp('2025-12-17 00:00:00'))]
+R3 HEAD set == flat BUY CALLS set: True 298 298 HEAD signals: {'BUY CALLS': 298}
+    set  trades       pnl  commission_$  pnl_after_comm  comm_pct_of_pnl  exit_friction_$  pnl_after_comm_and_exit_friction  comm_plus_friction_pct_of_pnl
+   flat     452 -19743.51        1248.0       -20991.51              6.3          8456.42                         -29447.93                           49.2
+R3_HEAD     298  10216.57         904.8         9311.77              8.9          6814.30                           2497.47                           75.6
+  R3_WT     315  13183.91         949.0        12234.91              7.2          7865.20                           4369.71                           66.9
+     WF     249   8340.87         756.6         7584.27              9.1          6048.81                           1535.46                           81.6

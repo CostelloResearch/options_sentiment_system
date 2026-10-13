@@ -1,0 +1,5 @@
+set,trades,total_pnl,sharpe_repo_all_rows,sharpe_repo_taken_only,sharpe_daily_exit_series,daily_ci95_lo,daily_ci95_hi,analytic_ci_lo,analytic_ci_hi,dd_repo_order,dd_date_ordered_daily
+flat,3,-760.21,-0.0212,-0.0193,-0.0985,-0.1206,-0.2769,0.004,-0.2011,-1771.58,-647.25
+R3_HEAD,4,304.84,0.0834,0.101,-0.0942,-0.1007,-0.5028,-0.0695,-0.1189,100.93,82.04
+R3_WT,1,-722.22,-0.05,-0.0661,-0.1952,-0.0945,-0.4811,-0.1699,-0.2205,-186.62,-572.82
+WF,3,554.65,0.137,0.1646,0.0034,-0.1234,-0.4115,0.0308,-0.0241,-184.71,82.05

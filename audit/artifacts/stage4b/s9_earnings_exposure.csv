@@ -1,0 +1,3 @@
+set,single_name_trades,in_suppress_window,pnl_in_window,pnl_outside,in_window_with_after_close_articles,by_ticker
+flat_BUY_CALLS (= R3 HEAD set),248,14,-22.6,5380.79,13,"{'AAPL': {'count': 5, 'sum': 408.0}, 'JPM': {'count': 3, 'sum': -49.0}, 'NVDA': {'count': 1, 'sum': -202.0}, 'UNH': {'count': 4, 'sum': -337.0}, 'XOM': {'count': 1, 'sum': 157.0}}"
+WF_BUY_CALLS,206,14,-22.6,5914.57,13,"{'AAPL': {'count': 5, 'sum': 408.0}, 'JPM': {'count': 3, 'sum': -49.0}, 'NVDA': {'count': 1, 'sum': -202.0}, 'UNH': {'count': 4, 'sum': -337.0}, 'XOM': {'count': 1, 'sum': 157.0}}"

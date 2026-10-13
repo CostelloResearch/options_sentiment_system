@@ -1,0 +1,8 @@
+stat,calendar_days_held,trading_days_held
+n,298.0,298.0
+mean,12.39,8.45
+median,14.0,9.0
+p25,12.0,8.0
+p75,14.0,10.0
+min,2.0,2.0
+max,17.0,10.0

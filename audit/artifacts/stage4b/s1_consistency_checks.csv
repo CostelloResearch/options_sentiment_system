@@ -1,0 +1,9 @@
+check,got,expected,pass
+3a WF canonical trades/pnl,249 / 8340.87,249 / 8340.87,True
+3a WF canonical warmup/refits,102 / 134,102 / (report),True
+3b WF original trades/pnl,246 / 7786.22,246 / 7786.22,True
+3b WF original warmup/refits,99 / 134,99 / 134,True
+3c flat taken/pnl,452 / -19743.51,452 / -19743.51,True
+3c R3 HEAD taken/pnl,298 / 10216.57,298 / 10216.57,True
+3c R3 WT taken/pnl,315 / 13183.91,315 / 13183.91,True
+3d RV rank (recomputed rounded to 4dp == logged 4dp),507/507 match,all,True

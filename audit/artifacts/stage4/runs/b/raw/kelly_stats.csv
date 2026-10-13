@@ -1,0 +1,3 @@
+signal,count,win_rate,avg_win,avg_loss,std_ret,W,kelly_f,kelly_f_frac,tradable
+BUY CALLS,298,0.5638,0.5334,0.3921,0.5479,1.3604,0.2431,0.0608,True
+BUY PUTS,154,0.2468,0.516,0.6853,0.5725,0.753,-0.7536,0.0,False

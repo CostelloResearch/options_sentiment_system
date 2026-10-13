@@ -1,0 +1,31 @@
+ticker,file,raw_bytes,scored,chunk_count,total_tokens,bytes_per_token,sentiment_score,verdict
+AAPL,10-Q_2020-07-31.txt,594,YES,1,115,5.17,0.0045,stub scored (1 chunk of boilerplate)
+AAPL,10-Q_2021-01-28.txt,595,YES,1,115,5.17,0.004,stub scored (1 chunk of boilerplate)
+AAPL,10-Q_2021-04-29.txt,593,YES,1,115,5.16,0.0042,stub scored (1 chunk of boilerplate)
+AAPL,10-Q_2021-07-28.txt,594,YES,1,115,5.17,0.0046,stub scored (1 chunk of boilerplate)
+JPM,10-K_2026-02-13.txt,1147020,YES,525,267650,4.29,-0.0774,full-document fallback scored
+WMT,10-K_2023-03-17.txt,332195,YES,140,71030,4.68,-0.133,full-document fallback scored
+WMT,10-K_2024-03-15.txt,350895,YES,146,73978,4.74,-0.098,full-document fallback scored
+WMT,10-K_2025-03-14.txt,342456,YES,141,71788,4.77,-0.0993,full-document fallback scored
+WMT,10-K_2026-03-13.txt,328431,YES,135,68815,4.77,-0.0881,full-document fallback scored
+XOM,10-K_2020-02-26.txt,317336,YES,138,70268,4.52,-0.0645,full-document fallback scored
+XOM,10-K_2021-02-24.txt,336268,YES,145,73641,4.57,-0.0881,full-document fallback scored
+XOM,10-K_2022-02-23.txt,327983,YES,140,71404,4.59,-0.0342,full-document fallback scored
+
+10-K/10-Q chunk_count by form: {'10-K': {'count': 34.0, 'mean': 79.4, 'std': 99.8, 'min': 6.0, '25%': 13.2, '50%': 16.0, '75%': 140.0, 'max': 525.0}, '10-Q': {'count': 95.0, 'mean': 29.0, 'std': 62.0, 'min': 1.0, '25%': 9.0, '50%': 11.0, '75%': 15.0, 'max': 337.0}}
+10-K rows with chunks>100: 12 of 34
+10-Q rows with chunks<=1: 4 of 95
+top 10-K by chunks:
+ ticker form                file   bytes  chunks  tokens
+   JPM 10-K 10-K_2026-02-13.txt 1147020     525  267650
+   XOM 10-K 10-K_2025-02-19.txt  366014     161   82062
+   XOM 10-K 10-K_2024-02-28.txt  344457     151   76683
+   XOM 10-K 10-K_2026-02-18.txt  339665     150   76474
+   XOM 10-K 10-K_2023-02-22.txt  337459     148   75332
+   WMT 10-K 10-K_2024-03-15.txt  350895     146   73978
+   XOM 10-K 10-K_2021-02-24.txt  336268     145   73641
+   WMT 10-K 10-K_2025-03-14.txt  342456     141   71788
+   WMT 10-K 10-K_2023-03-17.txt  332195     140   71030
+   XOM 10-K 10-K_2022-02-23.txt  327983     140   71404
+   XOM 10-K 10-K_2020-02-26.txt  317336     138   70268
+   WMT 10-K 10-K_2026-03-13.txt  328431     135   68815

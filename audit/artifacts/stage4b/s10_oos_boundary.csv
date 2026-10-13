@@ -1,0 +1,3 @@
+variant,BUY CALLS_count,BUY CALLS_kelly_f,BUY PUTS_count,BUY PUTS_kelly_f,n_spill,spill_by_signal
+train fold as in audit (entry<=cutoff),230,0.2295,107,-0.7096,30,"{'BUY PUTS': 17, 'BUY CALLS': 13}"
+excluding trades exiting after cutoff,217,0.2125,90,-0.6914,30,"{'BUY PUTS': 17, 'BUY CALLS': 13}"

@@ -1,0 +1,9 @@
+mode=real flat_rows=507 accepted=449 warmup_excluded=99 refits=134
+taken by signal: {'BUY CALLS': 246}
+blocked (negative Kelly) by signal: {'BUY PUTS': 133}
+refits where BUY PUTS is NOT blocked: 0 []
+refits where BUY CALLS IS blocked: 0 []
+BUY PUTS f* across refits: min -0.8729 max -0.1368
+first refit: 2025-07-29 50 {'BUY CALLS': (40, np.float64(0.33924533071843344)), 'BUY PUTS': (10, np.float64(-0.8728750923872874))}
+last refit: 2026-04-30 432 {'BUY CALLS': (282, np.float64(0.24942403208566172)), 'BUY PUTS': (150, np.float64(-0.5315036944054))}
+signals present in flat: {'BUY CALLS': 303, 'BUY PUTS': 154, 'SELL CALLS': 27, 'SELL PUTS': 23}

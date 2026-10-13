@@ -1,0 +1,9 @@
+$ .venv/Scripts/python.exe -I audit/artifacts/stage4/yf_record_replay.py --mode record --snapshot audit/artifacts/stage4/yf_snapshot --earnings AAPL NVDA JPM XOM UNH WMT
+[earnings] AAPL: 25 rows 2020-10-29 16:00:00 -> 2026-11-02 15:00:00
+[earnings] NVDA: 25 rows 2020-11-18 16:00:00 -> 2026-11-17 15:00:00
+[earnings] JPM: 25 rows 2020-10-13 06:00:00 -> 2026-10-13 08:00:00
+[earnings] XOM: 25 rows 2020-10-30 07:00:00 -> 2026-10-30 08:00:00
+[earnings] UNH: 25 rows 2020-10-14 05:00:00 -> 2026-10-13 08:00:00
+[earnings] WMT: 25 rows 2020-11-17 07:00:00 -> 2026-11-19 07:00:00
+
+[yf_record_replay] mode=record stats={"yf_calls": 0, "yf_network_fetches": 0, "yf_reused": 0, "blocked_finnhub": 0, "blocked_requests": 0, "blocked_curl": 0, "blocked_writes": [], "misses": []}

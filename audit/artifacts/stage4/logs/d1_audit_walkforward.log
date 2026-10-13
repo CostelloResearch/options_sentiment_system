@@ -1,0 +1,31 @@
+$ .venv/Scripts/python.exe -I audit/artifacts/stage4/yf_record_replay.py --mode replay --copy audit/artifacts/stage4/wt_src --snapshot audit/artifacts/stage4/yf_snapshot --script scripts/audit_walkforward.py -- --real
+[yf_record_replay] mode=replay copy=C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\wt_src script=scripts/audit_walkforward.py args=['--real']
+[yf_record_replay] start_utc=2026-10-10T19:32:12.173633+00:00
+[wf_audit] mode: REAL
+[wf_audit] coverage: 10/10 tickers (AAPL,GLD,IWM,JPM,NVDA,SPY,TLT,UNH,WMT,XOM)
+[wf_audit] loading flat corpus...
+[wf_audit] 507 signal rows.
+[wf_audit] running walk-forward (cached refits)...
+  [walk-fwd] 100/507 signals processed (0.0s, 1 refits)
+  [walk-fwd] 150/507 signals processed (0.1s, 17 refits)
+  [walk-fwd] 200/507 signals processed (0.3s, 32 refits)
+  [walk-fwd] 250/507 signals processed (0.4s, 47 refits)
+  [walk-fwd] 300/507 signals processed (0.6s, 61 refits)
+  [walk-fwd] 350/507 signals processed (0.9s, 77 refits)
+  [walk-fwd] 400/507 signals processed (1.3s, 95 refits)
+  [walk-fwd] 450/507 signals processed (1.7s, 118 refits)
+  [walk-fwd] 500/507 signals processed (2.8s, 133 refits)
+[walk-fwd] done: 134 unique refits, 99 warmup-excluded, 408 evaluable, 2.9s
+[wf_audit] 408 evaluable, 99 warmup-excluded, 134 unique refits, warmup cutoff 2025-07-29.
+[wf_audit] loading production Kelly logs...
+[wf_audit] computing rolling Sharpe...
+[wf_audit] rolling distribution: 123 windows.
+[wf_audit] computing headline metrics...
+  in-sample: {'n_signals': 507, 'n_trades': 314, 'total_pnl': 13906.13, 'sharpe': 0.9084, 'max_dd': -5175.84, 'profit_factor': 1.6878, 'win_rate': 0.359}
+  walk-forward: {'n_signals': 408, 'n_trades': 246, 'total_pnl': 7786.22, 'sharpe': 1.1369, 'max_dd': -1909.12, 'profit_factor': 1.6785, 'win_rate': 0.3505}
+[wf_audit] composing report...
+[wf_audit] -> C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\wt_src\outputs\walkforward_audit_report_real.md (177 lines)
+[yf_record_replay] end_utc=2026-10-10T19:32:15.538309+00:00 rc=0
+
+[yf_record_replay] mode=replay stats={"yf_calls": 0, "yf_network_fetches": 0, "yf_reused": 0, "blocked_finnhub": 0, "blocked_requests": 0, "blocked_curl": 0, "blocked_writes": [], "misses": []}
+[yf_record_replay] config module file: C:\Claude Code Project\options-sentiment-system\audit\artifacts\stage4\wt_src\config.py

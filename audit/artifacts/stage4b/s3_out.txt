@@ -1,0 +1,123 @@
+== S3
+            set            bucket   n  total_pnl  mean_pnl  win_rate
+flat_BUY_CALLS              <50% 206    3909.03     18.98     0.519
+flat_BUY_CALLS             >=50%  19     282.07     14.85     0.579
+flat_BUY_CALLS no_article_record   1      43.96     43.96     1.000
+flat_BUY_CALLS              none  72    3974.78     55.21     0.681
+ flat_BUY_PUTS              <50% 104  -18498.34   -177.87     0.240
+ flat_BUY_PUTS             >=50%  18    -429.89    -23.88     0.333
+ flat_BUY_PUTS no_article_record   1   -1319.66  -1319.66     0.000
+ flat_BUY_PUTS              none  31   -7705.46   -248.56     0.226
+  WF_BUY_CALLS              <50% 172    4702.71     27.34     0.529
+  WF_BUY_CALLS             >=50%  18      61.38      3.41     0.556
+  WF_BUY_CALLS no_article_record   1      43.96     43.96     1.000
+  WF_BUY_CALLS              none  58    3532.82     60.91     0.672
+== S4 returns
+ ticker  close_2025_05_08  close_2026_05_04  total_return
+  AAPL          196.2827          276.3368        0.4079
+  NVDA          117.0747          198.0273        0.6915
+   JPM          246.2908          304.7499        0.2374
+   XOM          101.2000          151.6718        0.4987
+   UNH          370.5650          366.3884       -0.0113
+   WMT           96.1589          129.7711        0.3495
+   IWM          198.0457          276.4986        0.3961
+   GLD          304.6300          414.7100        0.3614
+   TLT           81.5423           83.3213        0.0218
+   SPY          555.8400          714.3910        0.2852
+== S4 flat_BUY_CALLS by ticker (total 8209.84; top-2 ['XOM', 'GLD'] = 5836.22 = 71.1%)
+         count      sum  share_of_total
+ticker                                
+XOM        66  3445.97           0.420
+GLD        31  2390.25           0.291
+NVDA       34  1114.44           0.136
+WMT        43   707.66           0.086
+AAPL       23   554.20           0.068
+SPY         7   443.25           0.054
+UNH        37   371.56           0.045
+IWM         4   257.91           0.031
+TLT         8  -239.76          -0.029
+JPM        45  -835.64          -0.102
+== S4 WF_BUY_CALLS by ticker (total 8340.87; top-2 ['XOM', 'GLD'] = 6649.05 = 79.7%)
+         count      sum  share_of_total
+ticker                                
+XOM        55  4133.20           0.496
+GLD        27  2515.85           0.302
+WMT        33  1425.78           0.171
+AAPL       19   744.05           0.089
+UNH        37   371.56           0.045
+SPY         6   305.16           0.037
+NVDA       26    29.97           0.004
+IWM         2   -53.18          -0.006
+TLT         8  -318.93          -0.038
+JPM        36  -812.59          -0.097
+                                               0             1
+set                               flat_BUY_CALLS  WF_BUY_CALLS
+n                                            298           249
+corr_pnl_total_vs_underlying_ret          0.9141        0.8543
+corr_pnl_pct_vs_underlying_ret            0.8697        0.8636
+spearman_pnl_vs_underlying                 0.947        0.9336
+corr_pnl_total_vs_SPY_ret                  0.204        0.1945
+share_trades_underlying_up                0.6711        0.6827
+win_rate_when_up                            0.84        0.8294
+win_rate_when_down                           0.0           0.0
+total_pnl                                8209.84       8340.87
+top2                                     XOM,GLD       XOM,GLD
+top2_share                                0.7109        0.7972
+== S8 exits
+ set                            R3_HEAD  R3_WT     WF   flat
+strategy        exit_reason                                
+BEAR_PUT_DEBIT  profit_target      NaN   10.0    NaN   25.0
+                stop_loss          NaN    3.0    NaN   66.0
+                time_stop          NaN    6.0    NaN   63.0
+BULL_CALL_DEBIT profit_target    105.0  105.0   90.0  105.0
+                stop_loss         19.0   19.0   18.0   19.0
+                time_stop        174.0  172.0  141.0  174.0
+    set  trades  days_held_0_n  days_held_0_pnl   net_pnl  entry_friction_$  gross_pnl_pre_friction  entry_friction_pct_of_gross  exit_friction_$  pnl_with_exit_friction  min_days_held
+   flat     452              0              0.0 -19743.51           7327.58               -12415.93                         59.0          8456.42               -28199.93              2
+R3_HEAD     298              0              0.0  10216.57           5116.87                15333.44                         33.4          6814.30                 3402.27              2
+  R3_WT     315              0              0.0  13183.91           5754.86                18938.77                         30.4          7865.20                 5318.71              2
+     WF     249              0              0.0   8340.87           4522.58                12863.45                         35.2          6048.81                 2292.06              2
+== S9
+                            set  single_name_trades  in_suppress_window  pnl_in_window  pnl_outside  in_window_with_after_close_articles                                                                                                                                                                           by_ticker
+flat_BUY_CALLS (= R3 HEAD set)                 248                  14          -22.6      5380.79                                   13 {'AAPL': {'count': 5, 'sum': 408.0}, 'JPM': {'count': 3, 'sum': -49.0}, 'NVDA': {'count': 1, 'sum': -202.0}, 'UNH': {'count': 4, 'sum': -337.0}, 'XOM': {'count': 1, 'sum': 157.0}}
+                  WF_BUY_CALLS                 206                  14          -22.6      5914.57                                   13 {'AAPL': {'count': 5, 'sum': 408.0}, 'JPM': {'count': 3, 'sum': -49.0}, 'NVDA': {'count': 1, 'sum': -202.0}, 'UNH': {'count': 4, 'sum': -337.0}, 'XOM': {'count': 1, 'sum': 157.0}}
+== S10
+                                                         0                                      1
+variant            train fold as in audit (entry<=cutoff)  excluding trades exiting after cutoff
+BUY CALLS_count                                       230                                    217
+BUY CALLS_kelly_f                                  0.2295                                 0.2125
+BUY PUTS_count                                        107                                     90
+BUY PUTS_kelly_f                                  -0.7096                                -0.6914
+n_spill                                                30                                     30
+spill_by_signal         {'BUY PUTS': 17, 'BUY CALLS': 13}      {'BUY PUTS': 17, 'BUY CALLS': 13}
+== S11 truncated
+ ticker entry_date signal_orig exit_date_orig exit_reason_orig  pnl_total_orig exit_date_canon exit_reason_canon  pnl_total_canon     diff
+  AAPL 2026-04-24   BUY CALLS     2026-05-04       expiration           38.81      2026-05-06     profit_target           141.45   102.64
+  AAPL 2026-04-28   BUY CALLS     2026-05-04       expiration           40.15      2026-05-06     profit_target           137.12    96.97
+  AAPL 2026-04-30   BUY CALLS     2026-05-04       expiration           31.71      2026-05-06     profit_target           126.31    94.60
+  AAPL 2026-05-01   BUY CALLS     2026-05-04       expiration          -56.69      2026-05-12     profit_target           127.14   183.83
+  NVDA 2026-04-24   BUY CALLS     2026-05-04       expiration         -113.86      2026-05-08         time_stop            43.96   157.82
+   JPM 2026-04-21   BUY CALLS     2026-05-04       expiration          -89.42      2026-05-05         time_stop           -72.29    17.13
+   JPM 2026-04-22   BUY CALLS     2026-05-04       expiration          -88.39      2026-05-06         time_stop            -9.33    79.06
+   UNH 2026-04-21   BUY CALLS     2026-05-04       expiration           85.72      2026-05-05         time_stop            55.00   -30.72
+   UNH 2026-04-22   BUY CALLS     2026-05-04       expiration           41.99      2026-05-06         time_stop            30.04   -11.95
+   UNH 2026-04-27   BUY CALLS     2026-05-04       expiration           32.27      2026-05-11     profit_target           120.74    88.47
+   UNH 2026-04-28   BUY CALLS     2026-05-04       expiration          -34.17      2026-05-12     profit_target           109.34   143.51
+   UNH 2026-04-30   BUY CALLS     2026-05-04       expiration          -51.87      2026-05-13     profit_target           113.10   164.97
+   TLT 2026-04-30    BUY PUTS     2026-05-04       expiration          -13.64      2026-06-08         time_stop             3.00    16.64
+   TLT 2026-05-04    BUY PUTS     2026-05-04       expiration           -2.86      2026-06-12         time_stop           -74.19   -71.33
+   SPY 2026-04-23   BUY CALLS     2026-05-04       expiration           13.44      2026-05-06     profit_target           109.01    95.57
+   SPY 2026-04-24    BUY PUTS     2026-05-04       expiration         -212.57      2026-05-14         stop_loss         -1483.72 -1271.15
+   SPY 2026-04-28    BUY PUTS     2026-05-04       expiration         -298.24      2026-05-14         stop_loss         -1319.66 -1021.42
+net diff: -1165.36 n: 17
+     logs ticker  n_width0                           signals
+canonical    TLT         2                  {'BUY CALLS': 2}
+canonical    WMT         1                  {'BUY CALLS': 1}
+canonical    XOM         2                  {'BUY CALLS': 2}
+ original    TLT         6 {'BUY CALLS': 5, 'SELL CALLS': 1}
+ original    WMT         2                  {'BUY CALLS': 2}
+ original    XOM         1                  {'BUY CALLS': 1}
+           set    total  TLT_WMT_XOM  share  ex_TLT_WMT_XOM
+flat_BUY_CALLS  8209.84      3913.87  0.477         4295.97
+       R3_HEAD 10216.57      6054.46  0.593         4162.11
+  WF_BUY_CALLS  8340.87      5240.05  0.628         3100.82

@@ -289,7 +289,44 @@ both files under docs/hardening/.
 
 Recorded after the step-10 commit, in the follow-up commit (see below).
 
-FINAL_VERIFICATION
+Run immediately after commit `8cab910` (step 10). Raw output:
+
+```
+$ git diff --stat 4a42db0 HEAD | tail -1; non-allowed paths:
+ 180 files changed, 15030 insertions(+)
+0
+$ git diff --name-only 4a42db0 HEAD (top-level groups)
+      1 .gitignore
+    177 audit/
+      1 docs/hardening/H0a_report.md
+      1 docs/hardening/H0a_working_tree_classification.md
+$ git status --porcelain
+(end; lines=0)
+$ git log --oneline -6
+8cab910 docs: H0a hardening report and working-tree classification
+1206c1a audit: stages 1-6 reports, analysis scripts, pinned yfinance snapshot
+0a03735 .gitignore: fix .claude/ entry encoding; ignore audit repo copies and data archive
+4a42db0 Real-mode validation: backfill, scoring, audits land. PARTIAL/WINDOW-DEPENDENT verdicts on first real-
+25c46a5 README: add Research Reports section linking audit findings
+5ef15d9 merge: keep local README, replace GitHub stub
+$ git branch -a
+* main
+  wip/pre-audit-snapshot
+  remotes/origin/main
+$ source parity: git diff --name-only 4a42db0 HEAD -- *.py config.py requirements* outputs README.md PROJECT_STATE.md CLAUDE.md
+0
+$ git grep -c KELLY_FILTER_BYPASS HEAD -- . :!audit :!docs
+exit=1
+```
+
+Results:
+- `git diff --stat 4a42db0 HEAD` covers 180 files. They are `.gitignore`, 177 files under `audit/`, and 2 under `docs/hardening/`. 0 other paths. PASS
+- No `.py`, config, requirements, outputs/, README, PROJECT_STATE or CLAUDE.md path differs outside audit/. Main's source is byte-identical to 4a42db0. PASS
+- `git status --porcelain` is empty. PASS
+- `KELLY_FILTER_BYPASS` appears 0 times in HEAD outside audit/ and docs/ (git grep exit 1). PASS
+- Branches: `main`, `wip/pre-audit-snapshot` (local only, not pushed), `remotes/origin/main`. Nothing was pushed, so main is 3 commits ahead of origin/main.
+
+This section was added in one more docs-only commit, "docs: H0a final verification". The step-11 output can only exist after the step-10 commit, and amending would rewrite history, which is prohibited. That commit changes only this file, so the step-11 invariants still hold.
 
 ## Stopped or skipped
 
